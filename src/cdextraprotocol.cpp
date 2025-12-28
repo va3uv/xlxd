@@ -49,6 +49,7 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
 		peer.remoteModule = modules[1];
 		m_DExtraPeers.push_back(peer);
 	}
+}
 
 // Encode a DExtra connect packet
 void CDextraProtocol::EncodeConnectPacket(const std::string& localCallsign, char localModule, const std::string& remoteCallsign, char remoteModule, CBuffer* buffer) {
