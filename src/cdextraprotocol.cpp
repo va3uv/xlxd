@@ -237,7 +237,7 @@ void CDextraProtocol::Task()
             m_LastKeepaliveTime.Now();
         }
     }
-}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // keepalive helpers
