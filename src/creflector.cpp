@@ -1,3 +1,15 @@
+// Dedicated thread for DExtra protocol peering
+void CReflector::DExtraThread()
+{
+    while (!m_bStopThreads) {
+        // Call DExtra protocol Task()
+        CProtocol* dextra = m_Protocols.GetProtocol(0); // 0 = DExtra
+        if (dextra) {
+            dextra->Task();
+        }
+        CTimePoint::TaskSleepFor(100); // 100ms granularity
+    }
+}
 //
 //  creflector.cpp
 //  xlxd
@@ -183,18 +195,7 @@ void CReflector::Stop(void)
         }
     }
 
-// Dedicated thread for DExtra protocol peering
-void CReflector::DExtraThread()
-{
-    while (!m_bStopThreads) {
-        // Call DExtra protocol Task()
-        CProtocol* dextra = m_Protocols.GetProtocol(0); // 0 = DExtra
-        if (dextra) {
-            dextra->Task();
-        }
-        CTimePoint::TaskSleepFor(100); // 100ms granularity
-    }
-}
+
 
     // close protocols
     m_Protocols.Close();
