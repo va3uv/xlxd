@@ -377,6 +377,11 @@ void CXlxProtocol::HandlePeerLinks(void)
     for ( int i = 0; i < list->size(); i++ )
     {
         CCallsignListItem *item = &((list->data())[i]);
+        std::string cs = item->GetCallsign().GetCallsignString();
+        if (cs.substr(0,3) != "XLX") {
+            // skip non-XLX peers (e.g., XRF for DExtra)
+            continue;
+        }
         if ( peers->FindPeer(item->GetCallsign(), PROTOCOL_XLX) == NULL )
         {
             // resolve again peer's IP in case it's a dynamic IP
