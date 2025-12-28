@@ -377,7 +377,9 @@ void CXlxProtocol::HandlePeerLinks(void)
     for ( int i = 0; i < list->size(); i++ )
     {
         CCallsignListItem *item = &((list->data())[i]);
-        std::string cs = item->GetCallsign().GetCallsignString();
+        char csbuf[9] = {0};
+        item->GetCallsign().GetCallsignString(csbuf);
+        std::string cs(csbuf);
         if (cs.substr(0,3) != "XLX") {
             // skip non-XLX peers (e.g., XRF for DExtra)
             continue;
