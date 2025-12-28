@@ -182,6 +182,7 @@ void CReflector::Stop(void)
             m_RouterThreads[i] = NULL;
         }
     }
+
 // Dedicated thread for DExtra protocol peering
 void CReflector::DExtraThread()
 {
