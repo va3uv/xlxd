@@ -39,16 +39,26 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
     m_DExtraPeers.clear();
     std::ifstream infile(filename);
     std::string line;
-	while (std::getline(infile, line)) {
-		std::istringstream iss(line);
-		DExtraPeerConfig peer;
-		std::string modules;
-		if (!(iss >> peer.remoteCallsign >> peer.remoteIp >> modules)) continue;
-		if (modules.size() != 2) continue;
-		peer.localModule = modules[0];
-		peer.remoteModule = modules[1];
-		m_DExtraPeers.push_back(peer);
-	}
+    while (std::getline(infile, line)) {
+        std::istringstream iss(line);
+        std::string typeOrCallsign, ip, modules;
+        DExtraPeerConfig peer;
+        if (!(iss >> typeOrCallsign >> ip >> modules)) continue;
+        if (modules.size() != 2) continue;
+        peer.remoteIp = ip;
+        peer.localModule = modules[0];
+        peer.remoteModule = modules[1];
+        if (typeOrCallsign.substr(0,3) == "XRF") {
+            peer.type = PEER_DEXTRA;
+            peer.remoteCallsign = typeOrCallsign;
+        } else if (typeOrCallsign.substr(0,3) == "XLX") {
+            peer.type = PEER_XLX;
+            peer.remoteCallsign = typeOrCallsign;
+        } else {
+            continue; // skip unknown types
+        }
+        m_DExtraPeers.push_back(peer);
+    }
 }
 
 // Encode a DExtra connect packet
@@ -70,11 +80,17 @@ void CDextraProtocol::PeerWithConfiguredXLX() {
     GetReflectorCallsign().GetCallsignString(cs);
     std::string localCallsign(cs);
     for (const auto& peer : m_DExtraPeers) {
-        CBuffer connectPacket;
-        EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
         CIp remoteIp(peer.remoteIp.c_str());
-        m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
-        std::cout << "[DExtra] Sent connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
+        if (peer.type == PEER_DEXTRA) {
+            CBuffer connectPacket;
+            EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
+            m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
+            std::cout << "[DExtra] Sent connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
+        } else if (peer.type == PEER_XLX) {
+            // TODO: Implement XLX peering logic here, using port 10002
+            // Example: m_Socket.Send(xlxPacket, remoteIp, 10002);
+            std::cout << "[XLX] Would send XLX connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":10002 (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
+        }
     }
 }
 

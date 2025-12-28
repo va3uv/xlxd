@@ -78,7 +78,9 @@ public:
 
 protected:
     // DExtra peering helpers
+    enum PeerType { PEER_XLX, PEER_DEXTRA };
     struct DExtraPeerConfig {
+        PeerType type;
         std::string remoteCallsign;
         std::string remoteIp;
         char localModule;
