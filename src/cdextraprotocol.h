@@ -90,9 +90,7 @@ protected:
     void PeerWithConfiguredXLX();
     void EncodeConnectPacket(const std::string& localCallsign, char localModule, const std::string& remoteCallsign, char remoteModule, CBuffer* buffer);
 
-protected:
-    // queue helper
-    void HandleQueue(void);
+
 
     // keepalive helpers
     void HandleKeepalives(void);
