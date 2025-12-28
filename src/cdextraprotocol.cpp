@@ -51,10 +51,13 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
         if (typeOrCallsign.substr(0,3) == "XRF") {
             peer.type = PEER_DEXTRA;
             peer.remoteCallsign = typeOrCallsign;
+            std::cout << "[Config] Parsed DExtra peer: " << peer.remoteCallsign << " " << peer.remoteIp << " " << peer.localModule << peer.remoteModule << std::endl;
         } else if (typeOrCallsign.substr(0,3) == "XLX") {
             peer.type = PEER_XLX;
             peer.remoteCallsign = typeOrCallsign;
+            std::cout << "[Config] Parsed XLX peer: " << peer.remoteCallsign << " " << peer.remoteIp << " " << peer.localModule << peer.remoteModule << std::endl;
         } else {
+            std::cout << "[Config] Skipped unknown peer type: " << typeOrCallsign << std::endl;
             continue; // skip unknown types
         }
         m_DExtraPeers.push_back(peer);
@@ -84,11 +87,12 @@ void CDextraProtocol::PeerWithConfiguredXLX() {
         if (peer.type == PEER_DEXTRA) {
             CBuffer connectPacket;
             EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
+            std::cout << "[DEBUG] Sending DExtra connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << std::endl;
             m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
             std::cout << "[DExtra] Sent connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
         } else if (peer.type == PEER_XLX) {
             // TODO: Implement XLX peering logic here, using port 10002
-            // Example: m_Socket.Send(xlxPacket, remoteIp, 10002);
+            std::cout << "[DEBUG] Would send XLX connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":10002" << std::endl;
             std::cout << "[XLX] Would send XLX connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":10002 (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
         }
     }
