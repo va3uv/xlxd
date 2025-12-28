@@ -5,6 +5,7 @@
 // Dedicated thread for DExtra protocol peering
 void CReflector::DExtraThread()
 {
+    std::clog << "[DExtra] DExtraThread started" << std::endl;
     while (!m_bStopThreads) {
         // Call DExtra protocol Task()
         CProtocol* dextra = m_Protocols.GetProtocol(0); // 0 = DExtra

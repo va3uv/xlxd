@@ -31,12 +31,15 @@
 #include "creflector.h"
 #include "cgatekeeper.h"
 // Constructor/Destructor
-CDextraProtocol::CDextraProtocol() : CProtocol() {}
+CDextraProtocol::CDextraProtocol() : CProtocol() {
+    std::clog << "[DExtra] CDextraProtocol constructor called" << std::endl;
+}
 CDextraProtocol::~CDextraProtocol() {}
 
 // Load DExtra peers from config file
 void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
     m_DExtraPeers.clear();
+    std::clog << "[DExtra] Loading DExtra peers from: " << filename << std::endl;
     std::ifstream infile(filename);
     std::string line;
     while (std::getline(infile, line)) {
@@ -51,7 +54,7 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
         if (typeOrCallsign.substr(0,3) == "XRF") {
             peer.type = PEER_DEXTRA;
             peer.remoteCallsign = typeOrCallsign;
-            std::cout << "[Config] Parsed DExtra peer: " << peer.remoteCallsign << " " << peer.remoteIp << " " << peer.localModule << peer.remoteModule << std::endl;
+            std::clog << "[Config] Parsed DExtra peer: " << peer.remoteCallsign << " " << peer.remoteIp << " " << peer.localModule << peer.remoteModule << std::endl;
         } else if (typeOrCallsign.substr(0,3) == "XLX") {
             peer.type = PEER_XLX;
             peer.remoteCallsign = typeOrCallsign;
@@ -82,6 +85,7 @@ void CDextraProtocol::PeerWithConfiguredXLX() {
     char cs[9] = {0};
     GetReflectorCallsign().GetCallsignString(cs);
     std::string localCallsign(cs);
+    std::clog << "[DExtra] PeerWithConfiguredXLX() called, " << m_DExtraPeers.size() << " peers configured" << std::endl;
     for (const auto& peer : m_DExtraPeers) {
         CIp remoteIp(peer.remoteIp.c_str());
         if (peer.type == PEER_DEXTRA) {
