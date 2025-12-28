@@ -1,3 +1,18 @@
+#include "main.h"
+#include "creflector.h"
+
+// Dedicated thread for DExtra protocol peering
+void CReflector::DExtraThread()
+{
+    while (!m_bStopThreads) {
+        // Call DExtra protocol Task()
+        CProtocol* dextra = m_Protocols.GetProtocol(0); // 0 = DExtra
+        if (dextra) {
+            dextra->Task();
+        }
+        CTimePoint::TaskSleepFor(100); // 100ms granularity
+    }
+}
 // Dedicated thread for DExtra protocol peering
 void CReflector::DExtraThread()
 {
