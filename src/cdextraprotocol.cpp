@@ -24,10 +24,58 @@
 
 #include "main.h"
 #include <string.h>
+#include <fstream>
+#include <sstream>
 #include "cdextraclient.h"
 #include "cdextraprotocol.h"
 #include "creflector.h"
 #include "cgatekeeper.h"
+// Constructor/Destructor
+CDextraProtocol::CDextraProtocol() : CProtocol() {}
+CDextraProtocol::~CDextraProtocol() {}
+
+// Load DExtra peers from config file
+void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
+    m_DExtraPeers.clear();
+    std::ifstream infile(filename);
+    std::string line;
+	while (std::getline(infile, line)) {
+		std::istringstream iss(line);
+		DExtraPeerConfig peer;
+		std::string modules;
+		if (!(iss >> peer.remoteCallsign >> peer.remoteIp >> modules)) continue;
+		if (modules.size() != 2) continue;
+		peer.localModule = modules[0];
+		peer.remoteModule = modules[1];
+		m_DExtraPeers.push_back(peer);
+	}
+
+// Encode a DExtra connect packet
+void CDextraProtocol::EncodeConnectPacket(const std::string& localCallsign, char localModule, const std::string& remoteCallsign, char remoteModule, CBuffer* buffer) {
+    // DExtra connect packet: 11 bytes: 8 (callsign) + 1 (local module) + 1 (remote module) + 1 (revision=0)
+    buffer->clear();
+    char cs[9] = {0};
+    strncpy(cs, localCallsign.c_str(), 8);
+    buffer->Append((uint8*)cs, 8);
+    buffer->Append((uint8)localModule);
+    buffer->Append((uint8)remoteModule);
+    buffer->Append((uint8)0); // revision 0
+}
+
+// Send connect packets to all configured peers
+void CDextraProtocol::PeerWithConfiguredXLX() {
+    // Use the local reflector callsign for outgoing connects
+    char cs[9] = {0};
+    GetReflectorCallsign().GetCallsignString(cs);
+    std::string localCallsign(cs);
+    for (const auto& peer : m_DExtraPeers) {
+        CBuffer connectPacket;
+        EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
+        CIp remoteIp(peer.remoteIp.c_str());
+        m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
+        std::cout << "[DExtra] Sent connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
+    }
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -36,23 +84,20 @@
 bool CDextraProtocol::Init(void)
 {
     bool ok;
-    
     // base class
     ok = CProtocol::Init();
-    
     // update the reflector callsign
     m_ReflectorCallsign.PatchCallsign(0, (const uint8 *)"XRF", 3);
-    
     // create our socket
     ok &= m_Socket.Open(DEXTRA_PORT);
-    if ( !ok )
-    {
+    if (!ok) {
         std::cout << "Error opening socket on port UDP" << DEXTRA_PORT << " on ip " << g_Reflector.GetListenIp() << std::endl;
     }
-    
     // update time
     m_LastKeepaliveTime.Now();
-    
+    m_LastPeerTime.Now();
+    // Load peers from config
+    LoadDExtraPeers("../config/xlxd.interlink");
     // done
     return ok;
 }
@@ -60,7 +105,7 @@ bool CDextraProtocol::Init(void)
 ////////////////////////////////////////////////////////////////////////////////////////
 // task
 
-void CDextraProtocol::Task(void)
+void CDextraProtocol::Task()
 {
     CBuffer             Buffer;
     CIp                 Ip;
@@ -70,212 +115,127 @@ void CDextraProtocol::Task(void)
     CDvHeaderPacket     *Header;
     CDvFramePacket      *Frame;
     CDvLastFramePacket  *LastFrame;
-    
+
+    // Periodically peer with configured XLX reflectors (every 10 seconds)
+    if (m_LastPeerTime.DurationSinceNow() > 10) {
+        PeerWithConfiguredXLX();
+        m_LastPeerTime.Now();
+    }
+
     // any incoming packet ?
     if ( m_Socket.Receive(&Buffer, &Ip, 20) != -1 )
     {
-        // crack the packet
+        // ...existing code for handling packets...
         if ( (Frame = IsValidDvFramePacket(Buffer)) != NULL )
         {
-            //std::cout << "DExtra DV frame"  << std::endl;
-            
-            // handle it
-            OnDvFramePacketIn(Frame, &Ip);
-        }
-        else if ( (Header = IsValidDvHeaderPacket(Buffer)) != NULL )
-        {
-            //std::cout << "DExtra DV header:"  << std::endl << *Header << std::endl;
-            //std::cout << "DExtra DV header:"  << std::endl;
-            
-            // callsign muted?
-            if ( g_GateKeeper.MayTransmit(Header->GetMyCallsign(), Ip, PROTOCOL_DEXTRA, Header->GetRpt2Module()) )
-            {
-                // handle it
-                OnDvHeaderPacketIn(Header, Ip);
+                OnDvFramePacketIn(Frame, &Ip);
             }
-            else
+            else if ( (Header = IsValidDvHeaderPacket(Buffer)) != NULL )
             {
-                delete Header;
-            }
-        }
-        else if ( (LastFrame = IsValidDvLastFramePacket(Buffer)) != NULL )
-        {
-            //std::cout << "DExtra DV last frame" << std::endl;
-            
-            // handle it
-            OnDvLastFramePacketIn(LastFrame, &Ip);
-        }
-        else if ( IsValidConnectPacket(Buffer, &Callsign, &ToLinkModule, &ProtRev) )
-        {
-            std::cout << "DExtra connect packet for module " << ToLinkModule << " from " << Callsign << " at " << Ip << " rev " << ProtRev << std::endl;
-            
-            // callsign authorized?
-            if ( g_GateKeeper.MayLink(Callsign, Ip, PROTOCOL_DEXTRA) )
-            {
-                // valid module ?
-                if ( g_Reflector.IsValidModule(ToLinkModule) )
+                if ( g_GateKeeper.MayTransmit(Header->GetMyCallsign(), Ip, PROTOCOL_DEXTRA, Header->GetRpt2Module()) )
                 {
-                    // acknowledge the request
-                    EncodeConnectAckPacket(&Buffer, ProtRev);
-                    m_Socket.Send(Buffer, Ip);
-
-                    // check if any client currently streaming on the module
-                    CClients *clients = g_Reflector.GetClients();
-                    for ( int i = 0; i < clients->GetSize(); i++ )
-                    {
-                        if ( clients->GetClient(i)->IsAMaster() && (clients->GetClient(i)->GetReflectorModule() == ToLinkModule) )
-                        {
-                            // found a client streaming on the module, encode a copy of the cached header packet
-                            CBuffer buffer2;
-                            if ( EncodeDvPacket(m_StreamsCache[g_Reflector.GetModuleIndex(ToLinkModule)].m_dvHeader, &buffer2) )
-                            {
-                                // and send it to the connecting client, so it can listen the already streaming client
-                                for ( int j = 0; j < 5; j++ )
-                                {
-                                    m_Socket.Send(buffer2, Ip);
-                                }
-                            }
-                            break; // done, stop here
-                        }
-                    }
-                    g_Reflector.ReleaseClients();
-                    
-                    // create the client
-                    CDextraClient *client = new CDextraClient(Callsign, Ip, ToLinkModule, ProtRev);
-                    
-                    // and append
-                    g_Reflector.GetClients()->AddClient(client);
-                    g_Reflector.ReleaseClients();
+                    OnDvHeaderPacketIn(Header, Ip);
                 }
                 else
                 {
-                    std::cout << "DExtra node " << Callsign << " connect attempt on non-existing module" << std::endl;
-                    
-                    // deny the request
+                    delete Header;
+                }
+            }
+            else if ( (LastFrame = IsValidDvLastFramePacket(Buffer)) != NULL )
+            {
+                OnDvLastFramePacketIn(LastFrame, &Ip);
+            }
+            else if ( IsValidConnectPacket(Buffer, &Callsign, &ToLinkModule, &ProtRev) )
+            {
+                std::cout << "DExtra connect packet for module " << ToLinkModule << " from " << Callsign << " at " << Ip << " rev " << ProtRev << std::endl;
+                if ( g_GateKeeper.MayLink(Callsign, Ip, PROTOCOL_DEXTRA) )
+                {
+                    if ( g_Reflector.IsValidModule(ToLinkModule) )
+                    {
+                        EncodeConnectAckPacket(&Buffer, ProtRev);
+                        m_Socket.Send(Buffer, Ip);
+                        CClients *clients = g_Reflector.GetClients();
+                        for ( int i = 0; i < clients->GetSize(); i++ )
+                        {
+                            if ( clients->GetClient(i)->IsAMaster() && (clients->GetClient(i)->GetReflectorModule() == ToLinkModule) )
+                            {
+                                CBuffer buffer2;
+                                if ( EncodeDvPacket(m_StreamsCache[g_Reflector.GetModuleIndex(ToLinkModule)].m_dvHeader, &buffer2) )
+                                {
+                                    for ( int j = 0; j < 5; j++ )
+                                    {
+                                        m_Socket.Send(buffer2, Ip);
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        g_Reflector.ReleaseClients();
+                        CDextraClient *client = new CDextraClient(Callsign, Ip, ToLinkModule, ProtRev);
+                        g_Reflector.GetClients()->AddClient(client);
+                        g_Reflector.ReleaseClients();
+                    }
+                    else
+                    {
+                        std::cout << "DExtra node " << Callsign << " connect attempt on non-existing module" << std::endl;
+                        EncodeConnectNackPacket(&Buffer);
+                        m_Socket.Send(Buffer, Ip);
+                    }
+                }
+                else
+                {
                     EncodeConnectNackPacket(&Buffer);
                     m_Socket.Send(Buffer, Ip);
                 }
             }
+            else if ( IsValidDisconnectPacket(Buffer, &Callsign) )
+            {
+                std::cout << "DExtra disconnect packet from " << Callsign << " at " << Ip << std::endl;
+                CClients *clients = g_Reflector.GetClients();
+                CClient *client = clients->FindClient(Ip, PROTOCOL_DEXTRA);
+                if ( client != NULL )
+                {
+                    if ( client->GetProtocolRevision() == 1 )
+                    {
+                        EncodeDisconnectedPacket(&Buffer);
+                        m_Socket.Send(Buffer, Ip);
+                    }
+                    else if ( client->GetProtocolRevision() == 2 )
+                    {
+                        m_Socket.Send(Buffer, Ip);
+                    }
+                    clients->RemoveClient(client);
+                }
+                g_Reflector.ReleaseClients();
+            }
+            else if ( IsValidKeepAlivePacket(Buffer, &Callsign) )
+            {
+                CClients *clients = g_Reflector.GetClients();
+                int index = -1;
+                CClient *client = NULL;
+                while ( (client = clients->FindNextClient(Callsign, Ip, PROTOCOL_DEXTRA, &index)) != NULL )
+                {
+                   client->Alive();
+                }
+                g_Reflector.ReleaseClients();
+            }
             else
             {
-                // deny the request
-                EncodeConnectNackPacket(&Buffer);
-                m_Socket.Send(Buffer, Ip);
+                std::cout << "DExtra packet (" << Buffer.size() << ")" << std::endl;
             }
-        }
-        else if ( IsValidDisconnectPacket(Buffer, &Callsign) )
-        {
-            std::cout << "DExtra disconnect packet from " << Callsign << " at " << Ip << std::endl;
-            
-            // find client & remove it
-            CClients *clients = g_Reflector.GetClients();
-            CClient *client = clients->FindClient(Ip, PROTOCOL_DEXTRA);
-            if ( client != NULL )
-            {
-                // ack disconnect packet
-                if ( client->GetProtocolRevision() == 1 )
-                {
-                    EncodeDisconnectedPacket(&Buffer);
-                    m_Socket.Send(Buffer, Ip);
-                }
-                else if ( client->GetProtocolRevision() == 2 )
-                {
-                    m_Socket.Send(Buffer, Ip);
-                }
-               // and remove it
-                clients->RemoveClient(client);
-            }
-            g_Reflector.ReleaseClients();
-        }
-        else if ( IsValidKeepAlivePacket(Buffer, &Callsign) )
-        {
-            //std::cout << "DExtra keepalive packet from " << Callsign << " at " << Ip << std::endl;
-            
-            // find all clients with that callsign & ip and keep them alive
-            CClients *clients = g_Reflector.GetClients();
-            int index = -1;
-            CClient *client = NULL;
-            while ( (client = clients->FindNextClient(Callsign, Ip, PROTOCOL_DEXTRA, &index)) != NULL )
-            {
-               client->Alive();
-            }
-            g_Reflector.ReleaseClients();
-        }
-        else
-        {
-            std::cout << "DExtra packet (" << Buffer.size() << ")" << std::endl;
-            //std::cout << Buffer.data() << std::endl;
-        }
-    }
-    
-    // handle end of streaming timeout
-    CheckStreamsTimeout();
-        
-    // handle queue from reflector
-    HandleQueue();
-        
-    // keep client alive
-    if ( m_LastKeepaliveTime.DurationSinceNow() > DEXTRA_KEEPALIVE_PERIOD )
-    {
-        //
-        HandleKeepalives();
-        
-        // update time
-        m_LastKeepaliveTime.Now();
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////
-// queue helper
-
-void CDextraProtocol::HandleQueue(void)
-{
-    m_Queue.Lock();
-    while ( !m_Queue.empty() )
-    {
-        // get the packet
-        CPacket *packet = m_Queue.front();
-        m_Queue.pop();
-        
-        // get our sender's id
-        int iModId = g_Reflector.GetModuleIndex(packet->GetModuleId());
-        
-        // check if it's header and update cache
-        if ( packet->IsDvHeader() )
-        {
-            // this relies on queue feeder setting valid module id
-            m_StreamsCache[iModId].m_dvHeader = CDvHeaderPacket((const CDvHeaderPacket &)*packet);
         }
 
-        // encode it
-        CBuffer buffer;
-        if ( EncodeDvPacket(*packet, &buffer) )
+        // handle end of streaming timeout
+        CheckStreamsTimeout();
+        // handle queue from reflector
+        HandleQueue();
+        // keep client alive
+        if ( m_LastKeepaliveTime.DurationSinceNow() > DEXTRA_KEEPALIVE_PERIOD )
         {
-            // and push it to all our clients linked to the module and who are not streaming in
-            CClients *clients = g_Reflector.GetClients();
-            int index = -1;
-            CClient *client = NULL;
-            while ( (client = clients->FindNextClient(PROTOCOL_DEXTRA, &index)) != NULL )
-            {
-                // is this client busy ?
-                if ( !client->IsAMaster() && (client->GetReflectorModule() == packet->GetModuleId()) )
-                {
-                    // no, send the packet
-                    int n = packet->IsDvHeader() ? 5 : 1;
-                    for ( int i = 0; i < n; i++ )
-                    {
-                        m_Socket.Send(buffer, client->GetIp());
-                    }
-                }
-            }
-            g_Reflector.ReleaseClients();
+            HandleKeepalives();
+            m_LastKeepaliveTime.Now();
         }
-        
-        
-        // done
-        delete packet;
     }
-    m_Queue.Unlock();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////

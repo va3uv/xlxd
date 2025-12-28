@@ -68,16 +68,27 @@ class CDextraProtocol : public CProtocol
 {
 public:
     // constructor
-    CDextraProtocol() {};
-    
+    CDextraProtocol();
     // destructor
-    virtual ~CDextraProtocol() {};
-    
+    virtual ~CDextraProtocol();
     // initialization
     bool Init(void);
-    
     // task
     void Task(void);
+
+protected:
+    // DExtra peering helpers
+    struct DExtraPeerConfig {
+        std::string remoteCallsign;
+        std::string remoteIp;
+        char localModule;
+        char remoteModule;
+    };
+    std::vector<DExtraPeerConfig> m_DExtraPeers;
+    CTimePoint m_LastPeerTime;
+    void LoadDExtraPeers(const std::string& filename);
+    void PeerWithConfiguredXLX();
+    void EncodeConnectPacket(const std::string& localCallsign, char localModule, const std::string& remoteCallsign, char remoteModule, CBuffer* buffer);
 
 protected:
     // queue helper
