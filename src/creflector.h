@@ -95,6 +95,10 @@ public:
     void OnUsersChanged(void);
     void OnStreamOpen(const CCallsign &);
     void OnStreamClose(const CCallsign &);
+
+    // DExtra protocol thread
+    void DExtraThread();
+    std::thread* m_DExtraThread = nullptr;
     
 protected:
     // threads

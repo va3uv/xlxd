@@ -127,6 +127,9 @@ bool CReflector::Start(void)
             m_RouterThreads[i] = new std::thread(CReflector::RouterThread, this, &(m_Streams[i]));
         }
 
+        // start DExtra protocol thread
+        m_DExtraThread = new std::thread(&CReflector::DExtraThread, this);
+
         // start the reporting threads
         m_XmlReportThread = new std::thread(CReflector::XmlReportThread, this);
 #ifdef JSON_MONITOR
@@ -161,6 +164,14 @@ void CReflector::Stop(void)
         m_JsonReportThread = NULL;
     }
 
+
+    // stop & delete DExtra thread
+    if (m_DExtraThread != nullptr) {
+        m_DExtraThread->join();
+        delete m_DExtraThread;
+        m_DExtraThread = nullptr;
+    }
+
     // stop & delete all router thread
     for ( int i = 0; i < NB_OF_MODULES; i++ )
     {
@@ -171,6 +182,18 @@ void CReflector::Stop(void)
             m_RouterThreads[i] = NULL;
         }
     }
+// Dedicated thread for DExtra protocol peering
+void CReflector::DExtraThread()
+{
+    while (!m_bStopThreads) {
+        // Call DExtra protocol Task()
+        CProtocol* dextra = m_Protocols.GetProtocol(0); // 0 = DExtra
+        if (dextra) {
+            dextra->Task();
+        }
+        CTimePoint::TaskSleepFor(100); // 100ms granularity
+    }
+}
 
     // close protocols
     m_Protocols.Close();
