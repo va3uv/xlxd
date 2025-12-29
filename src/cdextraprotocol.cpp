@@ -234,8 +234,16 @@ void CDextraProtocol::Task()
                 {
                     if ( g_Reflector.IsValidModule(ToLinkModule) )
                     {
-                        EncodeConnectAckPacket(&Buffer, ProtRev);
-                        m_Socket.Send(Buffer, Ip);
+                        CBuffer ackBuffer;
+                        ackBuffer = Buffer; // Copy connect packet as base
+                        EncodeConnectAckPacket(&ackBuffer, ProtRev);
+                        std::clog << "[DExtra] Sending 14-byte ACK to " << Callsign << " at " << Ip << std::endl;
+                        std::clog << "[DExtra] ACK Raw packet: ";
+                        for (size_t i = 0; i < ackBuffer.size(); ++i) {
+                            std::clog << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)ackBuffer.data()[i] << " ";
+                        }
+                        std::clog << std::dec << std::endl;
+                        m_Socket.Send(ackBuffer, Ip);
                         // Add client if not already present
                         CClients *clients = g_Reflector.GetClients();
                         if (clients->FindClient(Ip, PROTOCOL_DEXTRA) == NULL) {
@@ -246,15 +254,30 @@ void CDextraProtocol::Task()
                     }
                     else
                     {
-                        std::cout << "DExtra node " << Callsign << " connect attempt on non-existing module" << std::endl;
-                        EncodeConnectNackPacket(&Buffer);
-                        m_Socket.Send(Buffer, Ip);
+                        CBuffer nackBuffer;
+                        nackBuffer = Buffer;
+                        EncodeConnectNackPacket(&nackBuffer);
+                        std::clog << "[DExtra] Sending 14-byte NAK to " << Callsign << " at " << Ip << std::endl;
+                        std::clog << "[DExtra] NAK Raw packet: ";
+                        for (size_t i = 0; i < nackBuffer.size(); ++i) {
+                            std::clog << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)nackBuffer.data()[i] << " ";
+                        }
+                        std::clog << std::dec << std::endl;
+                        m_Socket.Send(nackBuffer, Ip);
                     }
                 }
                 else
                 {
-                    EncodeConnectNackPacket(&Buffer);
-                    m_Socket.Send(Buffer, Ip);
+                    CBuffer nackBuffer;
+                    nackBuffer = Buffer;
+                    EncodeConnectNackPacket(&nackBuffer);
+                    std::clog << "[DExtra] Sending 14-byte NAK to " << Callsign << " at " << Ip << std::endl;
+                    std::clog << "[DExtra] NAK Raw packet: ";
+                    for (size_t i = 0; i < nackBuffer.size(); ++i) {
+                        std::clog << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)nackBuffer.data()[i] << " ";
+                    }
+                    std::clog << std::dec << std::endl;
+                    m_Socket.Send(nackBuffer, Ip);
                 }
             }
             else if ( IsValidDisconnectPacket(Buffer, &Callsign) )
