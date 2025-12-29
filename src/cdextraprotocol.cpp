@@ -102,14 +102,18 @@ void CDextraProtocol::PeerWithConfiguredXLX() {
     GetReflectorCallsign().GetCallsignString(cs);
     std::string localCallsign(cs);
     std::clog << "[DExtra] PeerWithConfiguredXLX() called, " << m_DExtraPeers.size() << " peers configured" << std::endl;
-    for (const auto& peer : m_DExtraPeers) {
-        CIp remoteIp(peer.remoteIp.c_str());
+    for (auto& peer : m_DExtraPeers) {
         if (peer.type == PEER_DEXTRA) {
-            CBuffer connectPacket;
-            EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
-            std::clog << "[DEBUG] Sending DExtra connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << std::endl;
-            m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
-            std::cout << "[DExtra] Sent connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
+            if (!peer.handshakeComplete) {
+                CIp remoteIp(peer.remoteIp.c_str());
+                CBuffer connectPacket;
+                EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
+                std::clog << "[DEBUG] Sending DExtra connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << std::endl;
+                m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
+                std::cout << "[DExtra] Sent connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
+            } else {
+                // Optionally, send keepalives here if needed
+            }
         } else if (peer.type == PEER_XLX) {
             // TODO: Implement XLX peering logic here, using port 10002
             std::cout << "[DEBUG] Would send XLX connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":10002" << std::endl;
@@ -205,6 +209,13 @@ void CDextraProtocol::Task()
             }
             std::clog << std::dec << std::endl;
             if (ackStr == "ACK") {
+                // Mark handshake complete for this peer
+                for (auto& peer : m_DExtraPeers) {
+                    if (peer.remoteCallsign == callsign && peer.remoteIp == Ip.ToString() && peer.localModule == localModule && peer.remoteModule == remoteModule) {
+                        peer.handshakeComplete = true;
+                        std::clog << "[DExtra] Handshake complete for peer " << peer.remoteCallsign << " at " << peer.remoteIp << std::endl;
+                    }
+                }
                 // Add a client for this remote if not already present
                 CClients *clients = g_Reflector.GetClients();
                 if (clients->FindClient(Ip, PROTOCOL_DEXTRA) == NULL) {

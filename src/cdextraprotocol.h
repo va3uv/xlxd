@@ -85,6 +85,7 @@ protected:
         std::string remoteIp;
         char localModule;
         char remoteModule;
+        bool handshakeComplete = false;
     };
     std::vector<DExtraPeerConfig> m_DExtraPeers;
     CTimePoint m_LastPeerTime;
