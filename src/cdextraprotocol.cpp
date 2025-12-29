@@ -199,6 +199,11 @@ void CDextraProtocol::Task()
             else if (memcmp(Buffer.data() + 11, "NAK", 3) == 0) ackStr = "NAK";
             else ackStr = "UNKNOWN";
             std::clog << "[DExtra] Received handshake/ack packet from " << callsign << " at " << Ip << " (local module " << localModule << ", remote module " << remoteModule << ", type: " << ackStr << ")" << std::endl;
+            std::clog << "[DExtra] Raw packet: ";
+            for (size_t i = 0; i < Buffer.size(); ++i) {
+                std::clog << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)Buffer.data()[i] << " ";
+            }
+            std::clog << std::dec << std::endl;
             if (ackStr == "ACK") {
                 // Add a client for this remote if not already present
                 CClients *clients = g_Reflector.GetClients();
