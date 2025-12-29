@@ -122,7 +122,7 @@ bool CDextraProtocol::Init(void)
     m_LastKeepaliveTime.Now();
     m_LastPeerTime.Now();
     // Load peers from config
-    LoadDExtraPeers("../config/xlxd.interlink");
+    LoadDExtraPeers("/xlxd/xlxd.interlink");
     // done
     return ok;
 }
