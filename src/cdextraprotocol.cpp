@@ -32,35 +32,35 @@
 #include "cgatekeeper.h"
 // Constructor/Destructor
 CDextraProtocol::CDextraProtocol() : CProtocol() {
-    std::clog << "[DExtra] CDextraProtocol constructor called" << std::endl;
+    // std::clog << "[DExtra] CDextraProtocol constructor called" << std::endl;
 }
 CDextraProtocol::~CDextraProtocol() {}
 
 // Load DExtra peers from config file
 void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
     m_DExtraPeers.clear();
-    std::clog << "[DExtra] Loading DExtra peers from: " << filename << std::endl;
+    // std::clog << "[DExtra] Loading DExtra peers from: " << filename << std::endl;
     std::ifstream infile(filename);
     std::string line;
     int lineNum = 0;
     while (std::getline(infile, line)) {
         lineNum++;
-        std::clog << "[DExtra] Read line " << lineNum << ": '" << line << "'" << std::endl;
+        // std::clog << "[DExtra] Read line " << lineNum << ": '" << line << "'" << std::endl;
         // Trim whitespace
         line.erase(0, line.find_first_not_of(" \t\r\n"));
         line.erase(line.find_last_not_of(" \t\r\n") + 1);
         if (line.empty() || line[0] == '#') {
-            std::clog << "[DExtra] Skipped empty/comment line " << lineNum << std::endl;
+            // std::clog << "[DExtra] Skipped empty/comment line " << lineNum << std::endl;
             continue;
         }
         std::istringstream iss(line);
         std::string typeOrCallsign, ip, modules;
         if (!(iss >> typeOrCallsign >> ip >> modules)) {
-            std::clog << "[DExtra] Malformed line " << lineNum << ": '" << line << "'" << std::endl;
+            // std::clog << "[DExtra] Malformed line " << lineNum << ": '" << line << "'" << std::endl;
             continue;
         }
         if (modules.length() < 2) {
-            std::clog << "[DExtra] Invalid modules field on line " << lineNum << ": '" << modules << "'" << std::endl;
+            // std::clog << "[DExtra] Invalid modules field on line " << lineNum << ": '" << modules << "'" << std::endl;
             continue;
         }
         DExtraPeerConfig peer;
@@ -70,15 +70,15 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
         if (typeOrCallsign.substr(0,3) == "XRF") {
             peer.type = PEER_DEXTRA;
             peer.remoteCallsign = typeOrCallsign;
-            std::clog << "[Config] Parsed DExtra peer: " << peer.remoteCallsign << " " << peer.remoteIp << " " << peer.localModule << peer.remoteModule << std::endl;
+            // std::clog << "[Config] Parsed DExtra peer: " << peer.remoteCallsign << " " << peer.remoteIp << " " << peer.localModule << peer.remoteModule << std::endl;
             m_DExtraPeers.push_back(peer);
         } else if (typeOrCallsign.substr(0,3) == "XLX") {
             peer.type = PEER_XLX;
             peer.remoteCallsign = typeOrCallsign;
-            std::clog << "[Config] Parsed XLX peer: " << peer.remoteCallsign << " " << peer.remoteIp << " " << peer.localModule << peer.remoteModule << std::endl;
+            // std::clog << "[Config] Parsed XLX peer: " << peer.remoteCallsign << " " << peer.remoteIp << " " << peer.localModule << peer.remoteModule << std::endl;
             m_DExtraPeers.push_back(peer);
         } else {
-            std::clog << "[DExtra] Skipped unknown peer type on line " << lineNum << ": '" << typeOrCallsign << "'" << std::endl;
+            // std::clog << "[DExtra] Skipped unknown peer type on line " << lineNum << ": '" << typeOrCallsign << "'" << std::endl;
         }
     }
 }
@@ -101,14 +101,14 @@ void CDextraProtocol::PeerWithConfiguredXLX() {
     char cs[9] = {0};
     GetReflectorCallsign().GetCallsignString(cs);
     std::string localCallsign(cs);
-    std::clog << "[DExtra] PeerWithConfiguredXLX() called, " << m_DExtraPeers.size() << " peers configured" << std::endl;
+    // std::clog << "[DExtra] PeerWithConfiguredXLX() called, " << m_DExtraPeers.size() << " peers configured" << std::endl;
     for (auto& peer : m_DExtraPeers) {
         if (peer.type == PEER_DEXTRA) {
             if (!peer.handshakeComplete) {
                 CIp remoteIp(peer.remoteIp.c_str());
                 CBuffer connectPacket;
                 EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
-                std::clog << "[DEBUG] Sending DExtra connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << std::endl;
+                // std::clog << "[DEBUG] Sending DExtra connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << std::endl;
                 m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
                 std::cout << "[DExtra] Sent connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
             } else {
@@ -202,12 +202,12 @@ void CDextraProtocol::Task()
             if (memcmp(Buffer.data() + 11, "ACK", 3) == 0) ackStr = "ACK";
             else if (memcmp(Buffer.data() + 11, "NAK", 3) == 0) ackStr = "NAK";
             else ackStr = "UNKNOWN";
-            std::clog << "[DExtra] Received handshake/ack packet from " << callsign << " at " << Ip << " (local module " << localModule << ", remote module " << remoteModule << ", type: " << ackStr << ")" << std::endl;
-            std::clog << "[DExtra] Raw packet: ";
-            for (size_t i = 0; i < Buffer.size(); ++i) {
-                std::clog << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)Buffer.data()[i] << " ";
-            }
-            std::clog << std::dec << std::endl;
+            // std::clog << "[DExtra] Received handshake/ack packet from " << callsign << " at " << Ip << " (local module " << localModule << ", remote module " << remoteModule << ", type: " << ackStr << ")" << std::endl;
+            // std::clog << "[DExtra] Raw packet: ";
+            // for (size_t i = 0; i < Buffer.size(); ++i) {
+            //     std::clog << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)Buffer.data()[i] << " ";
+            // }
+            // std::clog << std::dec << std::endl;
             if (ackStr == "ACK") {
                 // Normalize callsign for comparison (trim/pad to 8 chars)
                 std::string normCallsign(callsign);
@@ -220,7 +220,7 @@ void CDextraProtocol::Task()
                     std::string peerIpStr = peer.remoteIp;
                     if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr && peer.localModule == localModule && peer.remoteModule == remoteModule) {
                         peer.handshakeComplete = true;
-                        std::clog << "[DExtra] Handshake complete for peer '" << peerNormCallsign << "' at '" << peerIpStr << "'" << std::endl;
+                        // std::clog << "[DExtra] Handshake complete for peer '" << peerNormCallsign << "' at '" << peerIpStr << "'" << std::endl;
                     }
                 }
                 // Add a client for this remote if not already present
@@ -228,7 +228,7 @@ void CDextraProtocol::Task()
                 if (clients->FindClient(Ip, PROTOCOL_DEXTRA) == NULL) {
                     CDextraClient *client = new CDextraClient(CCallsign(callsign), Ip, localModule, 2);
                     clients->AddClient(client);
-                    std::clog << "[DExtra] Added CDextraClient for '" << normCallsign << "' at '" << pktIpStr << "'" << std::endl;
+                    // std::clog << "[DExtra] Added CDextraClient for '" << normCallsign << "' at '" << pktIpStr << "'" << std::endl;
                 }
                 g_Reflector.ReleaseClients();
             }
@@ -244,12 +244,12 @@ void CDextraProtocol::Task()
                         CBuffer ackBuffer;
                         ackBuffer = Buffer; // Copy connect packet as base
                         EncodeConnectAckPacket(&ackBuffer, ProtRev);
-                        std::clog << "[DExtra] Sending 14-byte ACK to " << Callsign << " at " << Ip << std::endl;
-                        std::clog << "[DExtra] ACK Raw packet: ";
-                        for (size_t i = 0; i < ackBuffer.size(); ++i) {
-                            std::clog << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)ackBuffer.data()[i] << " ";
-                        }
-                        std::clog << std::dec << std::endl;
+                        // std::clog << "[DExtra] Sending 14-byte ACK to " << Callsign << " at " << Ip << std::endl;
+                        // std::clog << "[DExtra] ACK Raw packet: ";
+                        // for (size_t i = 0; i < ackBuffer.size(); ++i) {
+                        //     std::clog << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)ackBuffer.data()[i] << " ";
+                        // }
+                        // std::clog << std::dec << std::endl;
                         m_Socket.Send(ackBuffer, Ip);
                         // Mark handshake complete for this peer (when we send ACK)
                         char cs[9] = {0};
@@ -263,7 +263,7 @@ void CDextraProtocol::Task()
                             std::string peerIpStr = peer.remoteIp;
                             if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr && peer.localModule == ToLinkModule) {
                                 peer.handshakeComplete = true;
-                                std::clog << "[DExtra] Handshake complete (ACK sent) for peer '" << peerNormCallsign << "' at '" << peerIpStr << "'" << std::endl;
+                                // std::clog << "[DExtra] Handshake complete (ACK sent) for peer '" << peerNormCallsign << "' at '" << peerIpStr << "'" << std::endl;
                             }
                         }
                         // Add client if not already present
@@ -279,12 +279,12 @@ void CDextraProtocol::Task()
                         CBuffer nackBuffer;
                         nackBuffer = Buffer;
                         EncodeConnectNackPacket(&nackBuffer);
-                        std::clog << "[DExtra] Sending 14-byte NAK to " << Callsign << " at " << Ip << std::endl;
-                        std::clog << "[DExtra] NAK Raw packet: ";
-                        for (size_t i = 0; i < nackBuffer.size(); ++i) {
-                            std::clog << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)nackBuffer.data()[i] << " ";
-                        }
-                        std::clog << std::dec << std::endl;
+                        // std::clog << "[DExtra] Sending 14-byte NAK to " << Callsign << " at " << Ip << std::endl;
+                        // std::clog << "[DExtra] NAK Raw packet: ";
+                        // for (size_t i = 0; i < nackBuffer.size(); ++i) {
+                        //     std::clog << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)nackBuffer.data()[i] << " ";
+                        // }
+                        // std::clog << std::dec << std::endl;
                         m_Socket.Send(nackBuffer, Ip);
                     }
                 }
