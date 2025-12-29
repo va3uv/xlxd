@@ -559,25 +559,25 @@ void CDextraProtocol::EncodeKeepAlivePacket(CBuffer *Buffer)
 
 void CDextraProtocol::EncodeConnectAckPacket(CBuffer *Buffer, int ProtRev)
 {
-   // is it for a XRF or repeater
-    if ( ProtRev == 2 )
-    {
-        // XRFxxx
-        uint8 rm = (Buffer->data())[8];
-        uint8 lm = (Buffer->data())[9];
-        Buffer->clear();
-        Buffer->Set((uint8 *)(const char *)GetReflectorCallsign(), CALLSIGN_LEN);
-        Buffer->Append(lm);
-        Buffer->Append(rm);
-        Buffer->Append((uint8)0);
+    // Always send a 14-byte ACK: 8 (callsign) + 1 (local module) + 1 (remote module) + 1 (0) + 3 ('ACK')
+    uint8 cs[8];
+    memset(cs, ' ', 8);
+    strncpy((char*)cs, (const char*)GetReflectorCallsign(), 8);
+    Buffer->clear();
+    Buffer->Append(cs, 8);
+    // Use the same module order as the connect packet
+    if (Buffer->size() < 10) {
+        Buffer->Append((uint8)'A'); // fallback
+        Buffer->Append((uint8)'A');
     }
-    else
-    {
-        // regular repeater
-        uint8 tag[] = { 'A','C','K',0 };
-        Buffer->resize(Buffer->size()-1);
-        Buffer->Append(tag, sizeof(tag));
+    else {
+        Buffer->Append((uint8)(Buffer->data()[8]));
+        Buffer->Append((uint8)(Buffer->data()[9]));
     }
+    Buffer->Append((uint8)0);
+    Buffer->Append((uint8)'A');
+    Buffer->Append((uint8)'C');
+    Buffer->Append((uint8)'K');
 }
 
 void CDextraProtocol::EncodeConnectNackPacket(CBuffer *Buffer)
