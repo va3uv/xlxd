@@ -169,24 +169,48 @@ void CDextraProtocol::Task()
         // ...existing code for handling packets...
         if ( (Frame = IsValidDvFramePacket(Buffer)) != NULL )
         {
-                OnDvFramePacketIn(Frame, &Ip);
-            }
-            else if ( (Header = IsValidDvHeaderPacket(Buffer)) != NULL )
+            OnDvFramePacketIn(Frame, &Ip);
+        }
+        else if ( (Header = IsValidDvHeaderPacket(Buffer)) != NULL )
+        {
+            if ( g_GateKeeper.MayTransmit(Header->GetMyCallsign(), Ip, PROTOCOL_DEXTRA, Header->GetRpt2Module()) )
             {
-                if ( g_GateKeeper.MayTransmit(Header->GetMyCallsign(), Ip, PROTOCOL_DEXTRA, Header->GetRpt2Module()) )
-                {
-                    OnDvHeaderPacketIn(Header, Ip);
-                }
-                else
-                {
-                    delete Header;
-                }
+                OnDvHeaderPacketIn(Header, Ip);
             }
-            else if ( (LastFrame = IsValidDvLastFramePacket(Buffer)) != NULL )
+            else
             {
-                OnDvLastFramePacketIn(LastFrame, &Ip);
+                delete Header;
             }
-            else if ( IsValidConnectPacket(Buffer, &Callsign, &ToLinkModule, &ProtRev) )
+        }
+        else if ( (LastFrame = IsValidDvLastFramePacket(Buffer)) != NULL )
+        {
+            OnDvLastFramePacketIn(LastFrame, &Ip);
+        }
+        // --- DExtra handshake/acknowledgment packet (14 bytes) ---
+        else if (Buffer.size() == 14) {
+            // 8 bytes: callsign, 1: local module, 1: remote module, 1: 0, 3: 'ACK' or 'NAK' or 0
+            char callsign[9] = {0};
+            memcpy(callsign, Buffer.data(), 8);
+            char localModule = Buffer.data()[8];
+            char remoteModule = Buffer.data()[9];
+            uint8 ackType = Buffer.data()[11];
+            std::string ackStr;
+            if (memcmp(Buffer.data() + 11, "ACK", 3) == 0) ackStr = "ACK";
+            else if (memcmp(Buffer.data() + 11, "NAK", 3) == 0) ackStr = "NAK";
+            else ackStr = "UNKNOWN";
+            std::clog << "[DExtra] Received handshake/ack packet from " << callsign << " at " << Ip << " (local module " << localModule << ", remote module " << remoteModule << ", type: " << ackStr << ")" << std::endl;
+            if (ackStr == "ACK") {
+                // Add a client for this remote if not already present
+                CClients *clients = g_Reflector.GetClients();
+                if (clients->FindClient(Ip, PROTOCOL_DEXTRA) == NULL) {
+                    CDextraClient *client = new CDextraClient(CCallsign(callsign), Ip, localModule, 2);
+                    clients->AddClient(client);
+                    std::clog << "[DExtra] Added CDextraClient for " << callsign << " at " << Ip << std::endl;
+                }
+                g_Reflector.ReleaseClients();
+            }
+        }
+        else if ( IsValidConnectPacket(Buffer, &Callsign, &ToLinkModule, &ProtRev) )
             {
                 std::cout << "DExtra connect packet for module " << ToLinkModule << " from " << Callsign << " at " << Ip << " rev " << ProtRev << std::endl;
                 if ( g_GateKeeper.MayLink(Callsign, Ip, PROTOCOL_DEXTRA) )
