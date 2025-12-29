@@ -251,6 +251,19 @@ void CDextraProtocol::Task()
                         }
                         std::clog << std::dec << std::endl;
                         m_Socket.Send(ackBuffer, Ip);
+                        // Mark handshake complete for this peer (when we send ACK)
+                        std::string normCallsign = Callsign;
+                        normCallsign.resize(8, ' ');
+                        std::string pktIpStr = std::string((const char*)Ip);
+                        for (auto& peer : m_DExtraPeers) {
+                            std::string peerNormCallsign = peer.remoteCallsign;
+                            peerNormCallsign.resize(8, ' ');
+                            std::string peerIpStr = peer.remoteIp;
+                            if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr && peer.localModule == ToLinkModule) {
+                                peer.handshakeComplete = true;
+                                std::clog << "[DExtra] Handshake complete (ACK sent) for peer '" << peerNormCallsign << "' at '" << peerIpStr << "'" << std::endl;
+                            }
+                        }
                         // Add client if not already present
                         CClients *clients = g_Reflector.GetClients();
                         if (clients->FindClient(Ip, PROTOCOL_DEXTRA) == NULL) {
