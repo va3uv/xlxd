@@ -212,12 +212,12 @@ void CDextraProtocol::Task()
                 // Normalize callsign for comparison (trim/pad to 8 chars)
                 std::string normCallsign(callsign);
                 normCallsign.resize(8, ' ');
-                std::string peerIpStr = peer.remoteIp;
                 std::string pktIpStr = std::string((const char*)Ip);
                 // Mark handshake complete for this peer
                 for (auto& peer : m_DExtraPeers) {
                     std::string peerNormCallsign = peer.remoteCallsign;
                     peerNormCallsign.resize(8, ' ');
+                    std::string peerIpStr = peer.remoteIp;
                     if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr && peer.localModule == localModule && peer.remoteModule == remoteModule) {
                         peer.handshakeComplete = true;
                         std::clog << "[DExtra] Handshake complete for peer '" << peerNormCallsign << "' at '" << peerIpStr << "'" << std::endl;
