@@ -82,6 +82,28 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
         }
         m_DExtraPeers.push_back(peer);
     }
+
+    // Remove clients for peers no longer in config
+    // (call after m_DExtraPeers is rebuilt)
+    CClients *clients = g_Reflector.GetClients();
+    for (const auto& oldPeer : oldPeers) {
+        bool found = false;
+        for (const auto& peer : m_DExtraPeers) {
+            if (oldPeer.type == peer.type && oldPeer.remoteCallsign == peer.remoteCallsign && oldPeer.remoteIp == peer.remoteIp && oldPeer.localModule == peer.localModule && oldPeer.remoteModule == peer.remoteModule) {
+                found = true;
+                break;
+            }
+        }
+        if (!found && oldPeer.handshakeComplete) {
+            // Remove client for this peer
+            CIp ip(oldPeer.remoteIp.c_str());
+            CClient *client = clients->FindClient(ip, PROTOCOL_DEXTRA);
+            if (client != NULL) {
+                clients->RemoveClient(client);
+            }
+        }
+    }
+    g_Reflector.ReleaseClients();
 }
 
 // Encode a DExtra connect packet
