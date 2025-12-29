@@ -209,11 +209,18 @@ void CDextraProtocol::Task()
             }
             std::clog << std::dec << std::endl;
             if (ackStr == "ACK") {
+                // Normalize callsign for comparison (trim/pad to 8 chars)
+                std::string normCallsign(callsign);
+                normCallsign.resize(8, ' ');
+                std::string peerIpStr = peer.remoteIp;
+                std::string pktIpStr = std::string((const char*)Ip);
                 // Mark handshake complete for this peer
                 for (auto& peer : m_DExtraPeers) {
-                    if (peer.remoteCallsign == callsign && peer.remoteIp == (const char*)Ip && peer.localModule == localModule && peer.remoteModule == remoteModule) {
+                    std::string peerNormCallsign = peer.remoteCallsign;
+                    peerNormCallsign.resize(8, ' ');
+                    if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr && peer.localModule == localModule && peer.remoteModule == remoteModule) {
                         peer.handshakeComplete = true;
-                        std::clog << "[DExtra] Handshake complete for peer " << peer.remoteCallsign << " at " << peer.remoteIp << std::endl;
+                        std::clog << "[DExtra] Handshake complete for peer '" << peerNormCallsign << "' at '" << peerIpStr << "'" << std::endl;
                     }
                 }
                 // Add a client for this remote if not already present
@@ -221,7 +228,7 @@ void CDextraProtocol::Task()
                 if (clients->FindClient(Ip, PROTOCOL_DEXTRA) == NULL) {
                     CDextraClient *client = new CDextraClient(CCallsign(callsign), Ip, localModule, 2);
                     clients->AddClient(client);
-                    std::clog << "[DExtra] Added CDextraClient for " << callsign << " at " << Ip << std::endl;
+                    std::clog << "[DExtra] Added CDextraClient for '" << normCallsign << "' at '" << pktIpStr << "'" << std::endl;
                 }
                 g_Reflector.ReleaseClients();
             }
