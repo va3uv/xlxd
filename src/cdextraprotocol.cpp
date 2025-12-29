@@ -215,34 +215,22 @@ void CDextraProtocol::Task()
                 g_Reflector.ReleaseClients();
             }
         }
-        else if ( IsValidConnectPacket(Buffer, &Callsign, &ToLinkModule, &ProtRev) )
+            else if ( IsValidConnectPacket(Buffer, &Callsign, &ToLinkModule, &ProtRev) )
             {
                 std::cout << "DExtra connect packet for module " << ToLinkModule << " from " << Callsign << " at " << Ip << " rev " << ProtRev << std::endl;
+                // Only respond with ACK/NAK, do not send another connect
                 if ( g_GateKeeper.MayLink(Callsign, Ip, PROTOCOL_DEXTRA) )
                 {
                     if ( g_Reflector.IsValidModule(ToLinkModule) )
                     {
                         EncodeConnectAckPacket(&Buffer, ProtRev);
                         m_Socket.Send(Buffer, Ip);
+                        // Add client if not already present
                         CClients *clients = g_Reflector.GetClients();
-                        for ( int i = 0; i < clients->GetSize(); i++ )
-                        {
-                            if ( clients->GetClient(i)->IsAMaster() && (clients->GetClient(i)->GetReflectorModule() == ToLinkModule) )
-                            {
-                                CBuffer buffer2;
-                                if ( EncodeDvPacket(m_StreamsCache[g_Reflector.GetModuleIndex(ToLinkModule)].m_dvHeader, &buffer2) )
-                                {
-                                    for ( int j = 0; j < 5; j++ )
-                                    {
-                                        m_Socket.Send(buffer2, Ip);
-                                    }
-                                }
-                                break;
-                            }
+                        if (clients->FindClient(Ip, PROTOCOL_DEXTRA) == NULL) {
+                            CDextraClient *client = new CDextraClient(Callsign, Ip, ToLinkModule, ProtRev);
+                            clients->AddClient(client);
                         }
-                        g_Reflector.ReleaseClients();
-                        CDextraClient *client = new CDextraClient(Callsign, Ip, ToLinkModule, ProtRev);
-                        g_Reflector.GetClients()->AddClient(client);
                         g_Reflector.ReleaseClients();
                     }
                     else
