@@ -161,8 +161,9 @@ void CDextraProtocol::Task()
     CDvFramePacket      *Frame;
     CDvLastFramePacket  *LastFrame;
 
-    // Periodically peer with configured XLX reflectors (every 10 seconds)
+    // Periodically reload peers from config and peer with configured XLX reflectors (every 10 seconds)
     if (m_LastPeerTime.DurationSinceNow() > 10) {
+        LoadDExtraPeers("/xlxd/xlxd.interlink");
         PeerWithConfiguredXLX();
         m_LastPeerTime.Now();
     }
