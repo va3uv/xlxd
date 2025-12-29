@@ -211,7 +211,7 @@ void CDextraProtocol::Task()
             if (ackStr == "ACK") {
                 // Mark handshake complete for this peer
                 for (auto& peer : m_DExtraPeers) {
-                    if (peer.remoteCallsign == callsign && peer.remoteIp == Ip.GetString() && peer.localModule == localModule && peer.remoteModule == remoteModule) {
+                    if (peer.remoteCallsign == callsign && peer.remoteIp == (const char*)Ip && peer.localModule == localModule && peer.remoteModule == remoteModule) {
                         peer.handshakeComplete = true;
                         std::clog << "[DExtra] Handshake complete for peer " << peer.remoteCallsign << " at " << peer.remoteIp << std::endl;
                     }
