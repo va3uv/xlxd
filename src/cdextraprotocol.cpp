@@ -38,29 +38,26 @@ CDextraProtocol::~CDextraProtocol() {}
 
 // Load DExtra peers from config file
 void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
+    // Preserve handshakeComplete for unchanged peers
+    std::vector<DExtraPeerConfig> oldPeers = m_DExtraPeers;
     m_DExtraPeers.clear();
-    // std::clog << "[DExtra] Loading DExtra peers from: " << filename << std::endl;
     std::ifstream infile(filename);
     std::string line;
     int lineNum = 0;
     while (std::getline(infile, line)) {
         lineNum++;
-        // std::clog << "[DExtra] Read line " << lineNum << ": '" << line << "'" << std::endl;
         // Trim whitespace
         line.erase(0, line.find_first_not_of(" \t\r\n"));
         line.erase(line.find_last_not_of(" \t\r\n") + 1);
         if (line.empty() || line[0] == '#') {
-            // std::clog << "[DExtra] Skipped empty/comment line " << lineNum << std::endl;
             continue;
         }
         std::istringstream iss(line);
         std::string typeOrCallsign, ip, modules;
         if (!(iss >> typeOrCallsign >> ip >> modules)) {
-            // std::clog << "[DExtra] Malformed line " << lineNum << ": '" << line << "'" << std::endl;
             continue;
         }
         if (modules.length() < 2) {
-            // std::clog << "[DExtra] Invalid modules field on line " << lineNum << ": '" << modules << "'" << std::endl;
             continue;
         }
         DExtraPeerConfig peer;
@@ -70,16 +67,20 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
         if (typeOrCallsign.substr(0,3) == "XRF") {
             peer.type = PEER_DEXTRA;
             peer.remoteCallsign = typeOrCallsign;
-            // std::clog << "[Config] Parsed DExtra peer: " << peer.remoteCallsign << " " << peer.remoteIp << " " << peer.localModule << peer.remoteModule << std::endl;
-            m_DExtraPeers.push_back(peer);
         } else if (typeOrCallsign.substr(0,3) == "XLX") {
             peer.type = PEER_XLX;
             peer.remoteCallsign = typeOrCallsign;
-            // std::clog << "[Config] Parsed XLX peer: " << peer.remoteCallsign << " " << peer.remoteIp << " " << peer.localModule << peer.remoteModule << std::endl;
-            m_DExtraPeers.push_back(peer);
         } else {
-            // std::clog << "[DExtra] Skipped unknown peer type on line " << lineNum << ": '" << typeOrCallsign << "'" << std::endl;
+            continue;
         }
+        // Try to find a matching old peer to preserve handshakeComplete
+        for (const auto& oldPeer : oldPeers) {
+            if (oldPeer.type == peer.type && oldPeer.remoteCallsign == peer.remoteCallsign && oldPeer.remoteIp == peer.remoteIp && oldPeer.localModule == peer.localModule && oldPeer.remoteModule == peer.remoteModule) {
+                peer.handshakeComplete = oldPeer.handshakeComplete;
+                break;
+            }
+        }
+        m_DExtraPeers.push_back(peer);
     }
 }
 
