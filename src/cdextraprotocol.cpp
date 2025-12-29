@@ -252,7 +252,9 @@ void CDextraProtocol::Task()
                         std::clog << std::dec << std::endl;
                         m_Socket.Send(ackBuffer, Ip);
                         // Mark handshake complete for this peer (when we send ACK)
-                        std::string normCallsign = Callsign;
+                        char cs[9] = {0};
+                        Callsign.GetCallsignString(cs);
+                        std::string normCallsign(cs);
                         normCallsign.resize(8, ' ');
                         std::string pktIpStr = std::string((const char*)Ip);
                         for (auto& peer : m_DExtraPeers) {
