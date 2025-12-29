@@ -42,12 +42,28 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
     std::clog << "[DExtra] Loading DExtra peers from: " << filename << std::endl;
     std::ifstream infile(filename);
     std::string line;
+    int lineNum = 0;
     while (std::getline(infile, line)) {
+        lineNum++;
+        std::clog << "[DExtra] Read line " << lineNum << ": '" << line << "'" << std::endl;
+        // Trim whitespace
+        line.erase(0, line.find_first_not_of(" \t\r\n"));
+        line.erase(line.find_last_not_of(" \t\r\n") + 1);
+        if (line.empty() || line[0] == '#') {
+            std::clog << "[DExtra] Skipped empty/comment line " << lineNum << std::endl;
+            continue;
+        }
         std::istringstream iss(line);
         std::string typeOrCallsign, ip, modules;
+        if (!(iss >> typeOrCallsign >> ip >> modules)) {
+            std::clog << "[DExtra] Malformed line " << lineNum << ": '" << line << "'" << std::endl;
+            continue;
+        }
+        if (modules.length() < 2) {
+            std::clog << "[DExtra] Invalid modules field on line " << lineNum << ": '" << modules << "'" << std::endl;
+            continue;
+        }
         DExtraPeerConfig peer;
-        if (!(iss >> typeOrCallsign >> ip >> modules)) continue;
-        if (modules.size() != 2) continue;
         peer.remoteIp = ip;
         peer.localModule = modules[0];
         peer.remoteModule = modules[1];
@@ -55,15 +71,15 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
             peer.type = PEER_DEXTRA;
             peer.remoteCallsign = typeOrCallsign;
             std::clog << "[Config] Parsed DExtra peer: " << peer.remoteCallsign << " " << peer.remoteIp << " " << peer.localModule << peer.remoteModule << std::endl;
+            m_DExtraPeers.push_back(peer);
         } else if (typeOrCallsign.substr(0,3) == "XLX") {
             peer.type = PEER_XLX;
             peer.remoteCallsign = typeOrCallsign;
-            std::cout << "[Config] Parsed XLX peer: " << peer.remoteCallsign << " " << peer.remoteIp << " " << peer.localModule << peer.remoteModule << std::endl;
+            std::clog << "[Config] Parsed XLX peer: " << peer.remoteCallsign << " " << peer.remoteIp << " " << peer.localModule << peer.remoteModule << std::endl;
+            m_DExtraPeers.push_back(peer);
         } else {
-            std::cout << "[Config] Skipped unknown peer type: " << typeOrCallsign << std::endl;
-            continue; // skip unknown types
+            std::clog << "[DExtra] Skipped unknown peer type on line " << lineNum << ": '" << typeOrCallsign << "'" << std::endl;
         }
-        m_DExtraPeers.push_back(peer);
     }
 }
 
