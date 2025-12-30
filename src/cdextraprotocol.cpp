@@ -722,23 +722,21 @@ void CDextraProtocol::Task()
                                 m_LastKeepaliveTime.Now();
                             }
                         }
-        // delete header if needed
-        if ( !newstream )
-        {
-            delete Header;
+                    }
+                }
+            }
         }
     }
-    else
+    // handle end of streaming timeout
+    CheckStreamsTimeout();
+    // handle queue from reflector
+    HandleQueue();
+    // keep client alive
+    if ( m_LastKeepaliveTime.DurationSinceNow() > DEXTRA_KEEPALIVE_PERIOD )
     {
-        // stream already open
-        // skip packet, but tickle the stream
-        stream->Tickle();
-        // and delete packet
-        delete Header;
+        HandleKeepalives();
+        m_LastKeepaliveTime.Now();
     }
-    
-    // done
-    return newstream;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
