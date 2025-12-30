@@ -107,6 +107,7 @@ protected:
     bool                IsValidDisconnectPacket(const CBuffer &, CCallsign *);
     bool                IsValidKeepAlivePacket(const CBuffer &, CCallsign *);
     CDvHeaderPacket     *IsValidDvHeaderPacket(const CBuffer &);
+    CDvHeaderPacket     *IsValidDvHeaderPacket(const CBuffer &) const;
     CDvFramePacket      *IsValidDvFramePacket(const CBuffer &);
     CDvLastFramePacket  *IsValidDvLastFramePacket(const CBuffer &);
     

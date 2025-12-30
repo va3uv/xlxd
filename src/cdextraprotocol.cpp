@@ -408,4 +408,9 @@ bool CDextraProtocol::EncodeDvLastFramePacket(const CDvLastFramePacket &Packet, 
     return true;
 }
 
+CDvHeaderPacket *CDextraProtocol::IsValidDvHeaderPacket(const CBuffer &Buffer) const {
+    // Call the non-const version
+    return const_cast<CDextraProtocol*>(this)->IsValidDvHeaderPacket(Buffer);
+}
+
 
