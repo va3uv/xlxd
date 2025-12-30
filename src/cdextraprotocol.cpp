@@ -365,6 +365,20 @@ void CDextraProtocol::Task()
                     }
                 }
                 if (peerFound) {
+                    // Mark handshake complete for this peer
+                    for (auto& peer : m_DExtraPeers) {
+                        std::string peerNormCallsign = peer.remoteCallsign;
+                        peerNormCallsign.resize(8, ' ');
+                        char cs[9] = {0};
+                        Callsign.GetCallsignString(cs);
+                        std::string normCallsign(cs);
+                        normCallsign.resize(8, ' ');
+                        std::string peerIpStr = peer.remoteIp;
+                        std::string pktIpStr = std::string((const char*)Ip);
+                        if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr && peer.localModule == Callsign.GetModule()) {
+                            peer.handshakeComplete = true;
+                        }
+                    }
                     CClients *clients = g_Reflector.GetClients();
                     int index = -1;
                     CClient *client = NULL;
