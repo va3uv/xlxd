@@ -91,6 +91,7 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
         for (const auto& oldPeer : oldPeers) {
             if (oldPeer.type == peer.type && oldPeer.remoteCallsign == peer.remoteCallsign && oldPeer.remoteIp == peer.remoteIp && oldPeer.localModule == peer.localModule && oldPeer.remoteModule == peer.remoteModule) {
                 peer.handshakeComplete = oldPeer.handshakeComplete;
+                std::clog << "[DExtra][DEBUG] Preserved handshakeComplete for peer " << peer.remoteCallsign << " at " << peer.remoteIp << " = " << (peer.handshakeComplete ? "true" : "false") << std::endl;
                 break;
             }
         }
@@ -141,6 +142,7 @@ void CDextraProtocol::PeerWithConfiguredXLX() {
     // std::clog << "[DExtra] PeerWithConfiguredXLX() called, " << m_DExtraPeers.size() << " peers configured" << std::endl;
     for (auto& peer : m_DExtraPeers) {
         if (peer.type == PEER_DEXTRA) {
+            std::clog << "[DExtra][DEBUG] Peer connect check: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' handshakeComplete=" << (peer.handshakeComplete ? "true" : "false") << std::endl;
             if (!peer.handshakeComplete) {
                 CIp remoteIp(peer.remoteIp.c_str());
                 CBuffer connectPacket;
