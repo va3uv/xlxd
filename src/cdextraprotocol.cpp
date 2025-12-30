@@ -742,5 +742,6 @@ bool CDextraProtocol::EncodeDvLastFramePacket(const CDvLastFramePacket &Packet, 
     Buffer->Append(tag2, sizeof(tag2));
     
     return true;
+}
 
 
