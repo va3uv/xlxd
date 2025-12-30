@@ -1,51 +1,10 @@
 //
 //  cdextraprotocol.cpp
 //  xlxd
-    bool newstream = false;
-    CCallsign peer;
+// ...existing code...
 
-    // Tag packet as remote peer origin
-    Header->SetRemotePeerOrigin();
+// Implementation moved to correct class scope below
 
-    // Find the stream
-    CPacketStream *stream = GetStream(Header->GetStreamId());
-    if ( stream == NULL )
-    {
-        // No stream open yet, open a new one
-        // Find this client
-        CClient *client = g_Reflector.GetClients()->FindClient(Ip, PROTOCOL_DEXTRA, Header->GetRpt2Module());
-        if ( client != NULL )
-        {
-            // Try to open the stream
-            if ( (stream = g_Reflector.OpenStream(Header, client)) != NULL )
-            {
-                // Keep the handle
-                m_Streams.push_back(stream);
-                newstream = true;
-            }
-            // Get origin
-            peer = client->GetCallsign();
-        }
-        // Release
-        g_Reflector.ReleaseClients();
-    }
-    else
-    {
-        // Stream already open, tickle it
-        stream->Tickle();
-    }
-
-    // Update last heard
-    g_Reflector.GetUsers()->Hearing(Header->GetMyCallsign(), Header->GetRpt1Callsign(), Header->GetRpt2Callsign(), peer);
-    g_Reflector.ReleaseUsers();
-
-    // Delete header if not used
-    if ( !newstream )
-    {
-        delete Header;
-    }
-
-    return newstream;
 // ----------------------------------------------------------------------------
 //    This file is part of xlxd.
 //
@@ -901,6 +860,33 @@ CDvLastFramePacket *CDextraProtocol::IsValidDvLastFramePacket(const CBuffer &Buf
 // packet encoding helpers
 
 void CDextraProtocol::EncodeKeepAlivePacket(CBuffer *Buffer)
+bool CDextraProtocol::OnDvHeaderPacketIn(CDvHeaderPacket *Header, const CIp &Ip)
+{
+    // Debug log for header packet arrival
+    {
+        std::lock_guard<std::mutex> lock(m_logMutex);
+        std::clog << "[DExtra][DEBUG] OnDvHeaderPacketIn: callsign='" << Header->GetMyCallsign() << "' rpt2='" << Header->GetRpt2Callsign() << "' streamId=" << Header->GetStreamId() << " from IP='" << Ip << "'" << std::endl;
+    }
+
+    // Route the header packet to all connected DExtra clients except the sender
+    CClients *clients = g_Reflector.GetClients();
+    int index = -1;
+    CClient *client = NULL;
+    while ((client = clients->FindNextClient(Header->GetMyCallsign(), Ip, PROTOCOL_DEXTRA, &index)) != NULL) {
+        // Only forward to clients that are not the sender
+        if (client->GetIp() != Ip) {
+            CBuffer buffer;
+            EncodeDvHeaderPacket(*Header, &buffer);
+            client->Send(buffer);
+            {
+                std::lock_guard<std::mutex> lock(m_logMutex);
+                std::clog << "[DExtra][DEBUG] Forwarded DV header to client IP='" << client->GetIp() << "'" << std::endl;
+            }
+        }
+    }
+    g_Reflector.ReleaseClients();
+    return true;
+}
 {
    Buffer->Set(GetReflectorCallsign());
 }
