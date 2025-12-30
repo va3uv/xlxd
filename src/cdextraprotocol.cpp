@@ -64,6 +64,8 @@
 // ----------------------------------------------------------------------------
 
 #include "main.h"
+#include "ccallsign.h"
+#include "cpacketstream.h"
 #include <mutex>
 #include <vector>
 #include <string.h>
