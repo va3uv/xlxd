@@ -695,8 +695,7 @@ CDvLastFramePacket *CDextraProtocol::IsValidDvLastFramePacket(const CBuffer &Buf
 // ...existing code...
 
 void CDextraProtocol::EncodeConnectAckPacket(CBuffer *Buffer, int ProtRev)
-{
-    // Always send a 14-byte ACK: 8 (callsign) + 1 (local module) + 1 (remote module) + 1 (0) + 3 ('ACK')
+}
     uint8 cs[8];
     memset(cs, ' ', 8);
     strncpy((char*)cs, (const char*)GetReflectorCallsign(), 8);
