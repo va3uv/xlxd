@@ -572,7 +572,7 @@ void CDextraProtocol::Task()
         HandleKeepalives();
         m_LastKeepaliveTime.Now();
     }
-}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // packet decoding helpers
