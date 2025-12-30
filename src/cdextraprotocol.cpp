@@ -278,8 +278,7 @@ void CDextraProtocol::Task()
         LoadDExtraPeers("/xlxd/xlxd.interlink");
         PeerWithConfiguredXLX();
         m_LastPeerTime.Now();
-    // ...existing code...
-    // Only one closing brace here to end Task()
+    }
     // any incoming packet ?
     if ( m_Socket.Receive(&Buffer, &Ip, 20) != -1 )
     {
@@ -292,12 +291,191 @@ void CDextraProtocol::Task()
             }
             std::clog << std::dec << std::endl;
         }
-    {
         // ...existing code for handling packets...
         if ( (Frame = IsValidDvFramePacket(Buffer)) != NULL )
         {
             OnDvFramePacketIn(Frame, &Ip);
         }
+        else if ( (Header = IsValidDvHeaderPacket(Buffer)) != NULL )
+        {
+            if ( g_GateKeeper.MayTransmit(Header->GetMyCallsign(), Ip, PROTOCOL_DEXTRA, Header->GetRpt2Module()) )
+            {
+                OnDvHeaderPacketIn(Header, Ip);
+            }
+            else
+            {
+                delete Header;
+            }
+        }
+        else if ( (LastFrame = IsValidDvLastFramePacket(Buffer)) != NULL )
+        {
+            OnDvLastFramePacketIn(LastFrame, &Ip);
+        }
+        // --- DExtra handshake/acknowledgment packet (14 bytes) ---
+        else if (Buffer.size() == 14) {
+            // 8 bytes: callsign, 1: local module, 1: remote module, 1: 0, 3: 'ACK' or 'NAK' or 0
+            char callsign[9] = {0};
+            memcpy(callsign, Buffer.data(), 8);
+            char localModule = Buffer.data()[8];
+            char remoteModule = Buffer.data()[9];
+            // Mark handshake complete for this peer (for any valid 14-byte packet)
+            std::string normCallsign(callsign);
+            normCallsign.resize(8, ' ');
+            std::string pktIpStr = std::string((const char*)Ip);
+            for (auto& peer : m_DExtraPeers) {
+                std::string peerNormCallsign = peer.remoteCallsign;
+                peerNormCallsign.resize(8, ' ');
+                std::string peerIpStr = peer.remoteIp;
+                if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr && peer.localModule == localModule && peer.remoteModule == remoteModule) {
+                    peer.handshakeComplete = true;
+                }
+            }
+            // Add a client for this remote if not already present
+            CClients *clients = g_Reflector.GetClients();
+            if (clients->FindClient(Ip, PROTOCOL_DEXTRA) == NULL) {
+                CDextraClient *client = new CDextraClient(CCallsign(callsign), Ip, localModule, 2);
+                clients->AddClient(client);
+                {
+                    std::lock_guard<std::mutex> lock(m_logMutex);
+                    std::clog << "[DExtra][DEBUG] Created new DExtra client for callsign='" << callsign << "' IP='" << Ip << "' module='" << localModule << "'" << std::endl;
+                }
+            }
+            g_Reflector.ReleaseClients();
+        }
+        else if ( IsValidConnectPacket(Buffer, &Callsign, &ToLinkModule, &ProtRev) )
+        {
+            std::cout << "DExtra connect packet for module " << ToLinkModule << " from " << Callsign << " at " << Ip << " rev " << ProtRev << std::endl;
+            // Mark handshake complete for this peer (for any valid connect packet, match on callsign and IP only)
+            char cs[9] = {0};
+            Callsign.GetCallsignString(cs);
+            std::string normCallsign(cs);
+            normCallsign.resize(8, ' ');
+            std::string pktIpStr = std::string((const char*)Ip);
+            bool matchedPeer = false;
+            std::clog << "[DExtra][DEBUG] Incoming connect: callsign='" << normCallsign << "' IP='" << pktIpStr << "' module='" << ToLinkModule << "'" << std::endl;
+            for (auto& peer : m_DExtraPeers) {
+                std::string peerNormCallsign = peer.remoteCallsign;
+                peerNormCallsign.resize(8, ' ');
+                std::string peerIpStr = peer.remoteIp;
+                std::clog << "[DExtra][DEBUG] Configured peer: callsign='" << peerNormCallsign << "' IP='" << peerIpStr << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "'" << std::endl;
+                if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr) {
+                    if (!peer.handshakeComplete) {
+                        std::clog << "[DExtra] Handshake complete for peer " << peer.remoteCallsign << " at " << peer.remoteIp << std::endl;
+                    }
+                    peer.handshakeComplete = true;
+                    matchedPeer = true;
+                }
+            }
+            // Only respond with ACK/NAK, do not send another connect
+            if (matchedPeer) {
+                if (g_GateKeeper.MayLink(Callsign, Ip, PROTOCOL_DEXTRA) && g_Reflector.IsValidModule(ToLinkModule)) {
+                    CBuffer ackBuffer;
+                    ackBuffer = Buffer; // Copy connect packet as base
+                    EncodeConnectAckPacket(&ackBuffer, ProtRev);
+                    m_Socket.Send(ackBuffer, Ip);
+                    // Add client if not already present
+                    CClients *clients = g_Reflector.GetClients();
+                    if (clients->FindClient(Ip, PROTOCOL_DEXTRA) == NULL) {
+                        CDextraClient *client = new CDextraClient(Callsign, Ip, ToLinkModule, ProtRev);
+                        clients->AddClient(client);
+                        {
+                            std::lock_guard<std::mutex> lock(m_logMutex);
+                            std::clog << "[DExtra][DEBUG] Created new DExtra client for callsign='" << Callsign << "' IP='" << Ip << "' module='" << ToLinkModule << "'" << std::endl;
+                        }
+                    }
+                    g_Reflector.ReleaseClients();
+                } else {
+                    CBuffer nackBuffer;
+                    nackBuffer = Buffer;
+                    EncodeConnectNackPacket(&nackBuffer);
+                    m_Socket.Send(nackBuffer, Ip);
+                }
+            } else {
+                // Only send NAK if not a configured peer
+                CBuffer nackBuffer;
+                nackBuffer = Buffer;
+                EncodeConnectNackPacket(&nackBuffer);
+                std::clog << "[DExtra] Sending 14-byte NAK to " << Callsign << " at " << Ip << " (not a configured peer)" << std::endl;
+                std::clog << "[DExtra] NAK Raw packet: ";
+                for (size_t i = 0; i < nackBuffer.size(); ++i) {
+                    std::clog << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)nackBuffer.data()[i] << " ";
+                }
+                std::clog << std::dec << std::endl;
+                m_Socket.Send(nackBuffer, Ip);
+            }
+        }
+        else if ( IsValidDisconnectPacket(Buffer, &Callsign) )
+        {
+            std::cout << "DExtra disconnect packet from " << Callsign << " at " << Ip << std::endl;
+            CClients *clients = g_Reflector.GetClients();
+            CClient *client = clients->FindClient(Ip, PROTOCOL_DEXTRA);
+            if ( client != NULL )
+            {
+                if ( client->GetProtocolRevision() == 1 )
+                {
+                    EncodeDisconnectedPacket(&Buffer);
+                    m_Socket.Send(Buffer, Ip);
+                }
+                else if ( client->GetProtocolRevision() == 2 )
+                {
+                    m_Socket.Send(Buffer, Ip);
+                }
+                clients->RemoveClient(client);
+            }
+            g_Reflector.ReleaseClients();
+        }
+        else if ( IsValidKeepAlivePacket(Buffer, &Callsign) )
+        {
+            // Only respond to keepalives from currently configured peers
+            char cs[9] = {0};
+            Callsign.GetCallsignString(cs);
+            std::string normCallsign(cs);
+            normCallsign.resize(8, ' ');
+            std::string pktIpStr = std::string((const char*)Ip);
+            bool peerFound = false;
+            std::clog << "[DExtra][DEBUG] Incoming keepalive: callsign='" << normCallsign << "' IP='" << pktIpStr << "'" << std::endl;
+            for (auto& peer : m_DExtraPeers) {
+                std::string peerNormCallsign = peer.remoteCallsign;
+                peerNormCallsign.resize(8, ' ');
+                std::string peerIpStr = peer.remoteIp;
+                std::clog << "[DExtra][DEBUG] Configured peer: callsign='" << peerNormCallsign << "' IP='" << peerIpStr << "'" << std::endl;
+                if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr) {
+                    if (!peer.handshakeComplete) {
+                        std::clog << "[DExtra] Handshake complete for peer (keepalive) " << peer.remoteCallsign << " at " << peer.remoteIp << std::endl;
+                    }
+                    peer.handshakeComplete = true;
+                    peerFound = true;
+                }
+            }
+            if (peerFound) {
+                CClients *clients = g_Reflector.GetClients();
+                int index = -1;
+                CClient *client = NULL;
+                while ( (client = clients->FindNextClient(Callsign, Ip, PROTOCOL_DEXTRA, &index)) != NULL )
+                {
+                   client->Alive();
+                }
+                g_Reflector.ReleaseClients();
+            } else {
+                std::clog << "[DExtra][DEBUG] Ignored keepalive from unknown peer: callsign='" << normCallsign << "' IP='" << pktIpStr << "'" << std::endl;
+            }
+        }
+        else
+        {
+            std::cout << "DExtra packet (" << Buffer.size() << ")" << std::endl;
+        }
+    }
+    // handle end of streaming timeout
+    CheckStreamsTimeout();
+    // handle queue from reflector
+    HandleQueue();
+    // keep client alive
+    if ( m_LastKeepaliveTime.DurationSinceNow() > DEXTRA_KEEPALIVE_PERIOD )
+    {
+        HandleKeepalives();
+        m_LastKeepaliveTime.Now();
+    }
+}
         else if ( (Header = IsValidDvHeaderPacket(Buffer)) != NULL )
         {
             if ( g_GateKeeper.MayTransmit(Header->GetMyCallsign(), Ip, PROTOCOL_DEXTRA, Header->GetRpt2Module()) )
