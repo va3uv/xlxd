@@ -348,14 +348,32 @@ void CDextraProtocol::Task()
             }
             else if ( IsValidKeepAlivePacket(Buffer, &Callsign) )
             {
-                CClients *clients = g_Reflector.GetClients();
-                int index = -1;
-                CClient *client = NULL;
-                while ( (client = clients->FindNextClient(Callsign, Ip, PROTOCOL_DEXTRA, &index)) != NULL )
-                {
-                   client->Alive();
+                // Only respond to keepalives from currently configured peers
+                bool peerFound = false;
+                for (const auto& peer : m_DExtraPeers) {
+                    std::string peerNormCallsign = peer.remoteCallsign;
+                    peerNormCallsign.resize(8, ' ');
+                    std::string normCallsign = Callsign.GetCallsignString();
+                    normCallsign.resize(8, ' ');
+                    std::string peerIpStr = peer.remoteIp;
+                    std::string pktIpStr = std::string((const char*)Ip);
+                    if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr && peer.localModule == Callsign.GetModule()) {
+                        peerFound = true;
+                        break;
+                    }
                 }
-                g_Reflector.ReleaseClients();
+                if (peerFound) {
+                    CClients *clients = g_Reflector.GetClients();
+                    int index = -1;
+                    CClient *client = NULL;
+                    while ( (client = clients->FindNextClient(Callsign, Ip, PROTOCOL_DEXTRA, &index)) != NULL )
+                    {
+                       client->Alive();
+                    }
+                    g_Reflector.ReleaseClients();
+                } else {
+                    // Ignore keepalive from unknown peer
+                }
             }
             else
             {
