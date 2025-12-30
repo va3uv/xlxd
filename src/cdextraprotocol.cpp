@@ -1,10 +1,51 @@
 //
 //  cdextraprotocol.cpp
 //  xlxd
-//
-//  Created by Jean-Luc Deltombe (LX3JL) on 01/11/2015.
-//  Copyright © 2015 Jean-Luc Deltombe (LX3JL). All rights reserved.
-//
+    bool newstream = false;
+    CCallsign peer;
+
+    // Tag packet as remote peer origin
+    Header->SetRemotePeerOrigin();
+
+    // Find the stream
+    CPacketStream *stream = GetStream(Header->GetStreamId());
+    if ( stream == NULL )
+    {
+        // No stream open yet, open a new one
+        // Find this client
+        CClient *client = g_Reflector.GetClients()->FindClient(Ip, PROTOCOL_DEXTRA, Header->GetRpt2Module());
+        if ( client != NULL )
+        {
+            // Try to open the stream
+            if ( (stream = g_Reflector.OpenStream(Header, client)) != NULL )
+            {
+                // Keep the handle
+                m_Streams.push_back(stream);
+                newstream = true;
+            }
+            // Get origin
+            peer = client->GetCallsign();
+        }
+        // Release
+        g_Reflector.ReleaseClients();
+    }
+    else
+    {
+        // Stream already open, tickle it
+        stream->Tickle();
+    }
+
+    // Update last heard
+    g_Reflector.GetUsers()->Hearing(Header->GetMyCallsign(), Header->GetRpt1Callsign(), Header->GetRpt2Callsign(), peer);
+    g_Reflector.ReleaseUsers();
+
+    // Delete header if not used
+    if ( !newstream )
+    {
+        delete Header;
+    }
+
+    return newstream;
 // ----------------------------------------------------------------------------
 //    This file is part of xlxd.
 //
