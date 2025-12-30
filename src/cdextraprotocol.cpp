@@ -189,7 +189,8 @@ void CDextraProtocol::Task()
         LoadDExtraPeers("/xlxd/xlxd.interlink");
         PeerWithConfiguredXLX();
         m_LastPeerTime.Now();
-    }
+    // ...existing code...
+    // Only one closing brace here to end Task()
     // any incoming packet ?
     if ( m_Socket.Receive(&Buffer, &Ip, 20) != -1 )
     {
