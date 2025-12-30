@@ -280,7 +280,6 @@ void CDextraProtocol::Task()
         m_LastPeerTime.Now();
     }
     // any incoming packet ?
-    if ( m_Socket.Receive(&Buffer, &Ip, 20) != -1 ) {
         // Log every incoming packet: size and first 8 bytes
         {
             std::lock_guard<std::mutex> lock(m_logMutex);
@@ -440,6 +439,7 @@ void CDextraProtocol::Task()
         } else {
             std::cout << "DExtra packet (" << Buffer.size() << ")" << std::endl;
         
+    }
     // handle end of streaming timeout
     CheckStreamsTimeout();
     // handle queue from reflector
