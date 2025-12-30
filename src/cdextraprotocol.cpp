@@ -283,6 +283,16 @@ void CDextraProtocol::Task()
     // any incoming packet ?
     if ( m_Socket.Receive(&Buffer, &Ip, 20) != -1 )
     {
+        // Log every incoming packet: size and first 8 bytes
+        {
+            std::lock_guard<std::mutex> lock(m_logMutex);
+            std::clog << "[DExtra][DEBUG] Incoming UDP packet from IP='" << Ip << "' size=" << Buffer.size() << " bytes: ";
+            for (size_t i = 0; i < Buffer.size() && i < 8; ++i) {
+                std::clog << std::hex << std::setw(2) << std::setfill('0') << (int)(unsigned char)Buffer.data()[i] << " ";
+            }
+            std::clog << std::dec << std::endl;
+        }
+    {
         // ...existing code for handling packets...
         if ( (Frame = IsValidDvFramePacket(Buffer)) != NULL )
         {
