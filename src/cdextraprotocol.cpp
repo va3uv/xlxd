@@ -110,11 +110,15 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
             }
         }
         if (!found && oldPeer.handshakeComplete) {
+            std::clog << "[DExtra][DEBUG] Removing client for peer: callsign='" << oldPeer.remoteCallsign << "' IP='" << oldPeer.remoteIp << "' localModule='" << oldPeer.localModule << "' remoteModule='" << oldPeer.remoteModule << "' handshakeComplete=" << (oldPeer.handshakeComplete ? "true" : "false") << std::endl;
             // Remove client for this peer
             CIp ip(oldPeer.remoteIp.c_str());
             CClient *client = clients->FindClient(ip, PROTOCOL_DEXTRA);
             if (client != NULL) {
                 clients->RemoveClient(client);
+                std::clog << "[DExtra][DEBUG] Client removed for peer: callsign='" << oldPeer.remoteCallsign << "' IP='" << oldPeer.remoteIp << "'" << std::endl;
+            } else {
+                std::clog << "[DExtra][DEBUG] No client found to remove for peer: callsign='" << oldPeer.remoteCallsign << "' IP='" << oldPeer.remoteIp << "'" << std::endl;
             }
         }
     }
