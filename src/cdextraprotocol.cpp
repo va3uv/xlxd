@@ -140,6 +140,11 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
             CIp ip(oldPeer.remoteIp.c_str());
             CClient *client = clients->FindClient(ip, PROTOCOL_DEXTRA);
             if (client != NULL) {
+                void CDextraProtocol::EncodeKeepAlivePacket(CBuffer *Buffer)
+                {
+                    Buffer->Set(GetReflectorCallsign());
+                }
+
                 clients->RemoveClient(client);
                 {
                     std::lock_guard<std::mutex> lock(m_logMutex);
