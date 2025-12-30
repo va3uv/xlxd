@@ -716,7 +716,6 @@ void CDextraProtocol::EncodeConnectAckPacket(CBuffer *Buffer, int ProtRev)
     Buffer->Append((uint8)'C');
     Buffer->Append((uint8)'K');
 }
-
 // ...existing code...
 }
 
