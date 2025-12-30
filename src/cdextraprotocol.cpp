@@ -221,16 +221,10 @@ void CDextraProtocol::Task()
             memcpy(callsign, Buffer.data(), 8);
             char localModule = Buffer.data()[8];
             char remoteModule = Buffer.data()[9];
-            uint8 ackType = Buffer.data()[11];
-            std::string ackStr;
-            if (memcmp(Buffer.data() + 11, "ACK", 3) == 0) ackStr = "ACK";
-            else if (memcmp(Buffer.data() + 11, "NAK", 3) == 0) ackStr = "NAK";
-            else ackStr = "UNKNOWN";
-            // Normalize callsign for comparison (trim/pad to 8 chars)
+            // Mark handshake complete for this peer (for any valid 14-byte packet)
             std::string normCallsign(callsign);
             normCallsign.resize(8, ' ');
             std::string pktIpStr = std::string((const char*)Ip);
-            // Mark handshake complete for this peer (for any valid 14-byte packet)
             for (auto& peer : m_DExtraPeers) {
                 std::string peerNormCallsign = peer.remoteCallsign;
                 peerNormCallsign.resize(8, ' ');
@@ -247,7 +241,7 @@ void CDextraProtocol::Task()
             }
             g_Reflector.ReleaseClients();
         }
-        else if ( IsValidConnectPacket(Buffer, &Callsign, &ToLinkModule, &ProtRev) )
+            else if ( IsValidConnectPacket(Buffer, &Callsign, &ToLinkModule, &ProtRev) )
             {
                 std::cout << "DExtra connect packet for module " << ToLinkModule << " from " << Callsign << " at " << Ip << " rev " << ProtRev << std::endl;
                 // Mark handshake complete for this peer (for any valid connect packet)
@@ -327,7 +321,7 @@ void CDextraProtocol::Task()
             {
                 // Only respond to keepalives from currently configured peers
                 bool peerFound = false;
-                for (const auto& peer : m_DExtraPeers) {
+                for (auto& peer : m_DExtraPeers) {
                     std::string peerNormCallsign = peer.remoteCallsign;
                     peerNormCallsign.resize(8, ' ');
                     char cs[9] = {0};
@@ -337,25 +331,11 @@ void CDextraProtocol::Task()
                     std::string peerIpStr = peer.remoteIp;
                     std::string pktIpStr = std::string((const char*)Ip);
                     if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr && peer.localModule == Callsign.GetModule()) {
+                        peer.handshakeComplete = true;
                         peerFound = true;
-                        break;
                     }
                 }
                 if (peerFound) {
-                    // Mark handshake complete for this peer
-                    for (auto& peer : m_DExtraPeers) {
-                        std::string peerNormCallsign = peer.remoteCallsign;
-                        peerNormCallsign.resize(8, ' ');
-                        char cs[9] = {0};
-                        Callsign.GetCallsignString(cs);
-                        std::string normCallsign(cs);
-                        normCallsign.resize(8, ' ');
-                        std::string peerIpStr = peer.remoteIp;
-                        std::string pktIpStr = std::string((const char*)Ip);
-                        if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr && peer.localModule == Callsign.GetModule()) {
-                            peer.handshakeComplete = true;
-                        }
-                    }
                     CClients *clients = g_Reflector.GetClients();
                     int index = -1;
                     CClient *client = NULL;
