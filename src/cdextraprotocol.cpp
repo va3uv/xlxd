@@ -1,23 +1,3 @@
-    // Deduplicate peers after loading
-    std::vector<DExtraPeerConfig> dedupedPeers;
-    for (const auto& peer : m_DExtraPeers) {
-        bool duplicate = false;
-        for (const auto& existing : dedupedPeers) {
-            if (peer.type == existing.type &&
-                peer.remoteCallsign == existing.remoteCallsign &&
-                peer.remoteIp == existing.remoteIp &&
-                peer.localModule == existing.localModule &&
-                peer.remoteModule == existing.remoteModule) {
-                duplicate = true;
-                std::clog << "[DExtra][WARNING] Duplicate peer in config: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "'. Only the first occurrence will be used." << std::endl;
-                break;
-            }
-        }
-        if (!duplicate) {
-            dedupedPeers.push_back(peer);
-        }
-    }
-    m_DExtraPeers = dedupedPeers;
 //
 //  cdextraprotocol.cpp
 //  xlxd
