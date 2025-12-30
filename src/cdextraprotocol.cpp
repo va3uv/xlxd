@@ -440,7 +440,6 @@ void CDextraProtocol::Task()
         } else {
             std::cout << "DExtra packet (" << Buffer.size() << ")" << std::endl;
         }
-    }
     // handle end of streaming timeout
     CheckStreamsTimeout();
     // handle queue from reflector
