@@ -280,8 +280,7 @@ void CDextraProtocol::Task()
         m_LastPeerTime.Now();
     }
     // any incoming packet ?
-    if ( m_Socket.Receive(&Buffer, &Ip, 20) != -1 )
-    {
+    if ( m_Socket.Receive(&Buffer, &Ip, 20) != -1 ) {
         // Log every incoming packet: size and first 8 bytes
         {
             std::lock_guard<std::mutex> lock(m_logMutex);
@@ -292,27 +291,17 @@ void CDextraProtocol::Task()
             std::clog << std::dec << std::endl;
         }
         // ...existing code for handling packets...
-        if ( (Frame = IsValidDvFramePacket(Buffer)) != NULL )
-        {
+        if ( (Frame = IsValidDvFramePacket(Buffer)) != NULL ) {
             OnDvFramePacketIn(Frame, &Ip);
-        }
-        else if ( (Header = IsValidDvHeaderPacket(Buffer)) != NULL )
-        {
-            if ( g_GateKeeper.MayTransmit(Header->GetMyCallsign(), Ip, PROTOCOL_DEXTRA, Header->GetRpt2Module()) )
-            {
+        } else if ( (Header = IsValidDvHeaderPacket(Buffer)) != NULL ) {
+            if ( g_GateKeeper.MayTransmit(Header->GetMyCallsign(), Ip, PROTOCOL_DEXTRA, Header->GetRpt2Module()) ) {
                 OnDvHeaderPacketIn(Header, Ip);
-            }
-            else
-            {
+            } else {
                 delete Header;
             }
-        }
-        else if ( (LastFrame = IsValidDvLastFramePacket(Buffer)) != NULL )
-        {
+        } else if ( (LastFrame = IsValidDvLastFramePacket(Buffer)) != NULL ) {
             OnDvLastFramePacketIn(LastFrame, &Ip);
-        }
-        // --- DExtra handshake/acknowledgment packet (14 bytes) ---
-        else if (Buffer.size() == 14) {
+        } else if (Buffer.size() == 14) {
             // 8 bytes: callsign, 1: local module, 1: remote module, 1: 0, 3: 'ACK' or 'NAK' or 0
             char callsign[9] = {0};
             memcpy(callsign, Buffer.data(), 8);
@@ -341,9 +330,7 @@ void CDextraProtocol::Task()
                 }
             }
             g_Reflector.ReleaseClients();
-        }
-        else if ( IsValidConnectPacket(Buffer, &Callsign, &ToLinkModule, &ProtRev) )
-        {
+        } else if ( IsValidConnectPacket(Buffer, &Callsign, &ToLinkModule, &ProtRev) ) {
             std::cout << "DExtra connect packet for module " << ToLinkModule << " from " << Callsign << " at " << Ip << " rev " << ProtRev << std::endl;
             // Mark handshake complete for this peer (for any valid connect packet, match on callsign and IP only)
             char cs[9] = {0};
@@ -403,29 +390,21 @@ void CDextraProtocol::Task()
                 std::clog << std::dec << std::endl;
                 m_Socket.Send(nackBuffer, Ip);
             }
-        }
-        else if ( IsValidDisconnectPacket(Buffer, &Callsign) )
-        {
+        } else if ( IsValidDisconnectPacket(Buffer, &Callsign) ) {
             std::cout << "DExtra disconnect packet from " << Callsign << " at " << Ip << std::endl;
             CClients *clients = g_Reflector.GetClients();
             CClient *client = clients->FindClient(Ip, PROTOCOL_DEXTRA);
-            if ( client != NULL )
-            {
-                if ( client->GetProtocolRevision() == 1 )
-                {
+            if ( client != NULL ) {
+                if ( client->GetProtocolRevision() == 1 ) {
                     EncodeDisconnectedPacket(&Buffer);
                     m_Socket.Send(Buffer, Ip);
-                }
-                else if ( client->GetProtocolRevision() == 2 )
-                {
+                } else if ( client->GetProtocolRevision() == 2 ) {
                     m_Socket.Send(Buffer, Ip);
                 }
                 clients->RemoveClient(client);
             }
             g_Reflector.ReleaseClients();
-        }
-        else if ( IsValidKeepAlivePacket(Buffer, &Callsign) )
-        {
+        } else if ( IsValidKeepAlivePacket(Buffer, &Callsign) ) {
             // Only respond to keepalives from currently configured peers
             char cs[9] = {0};
             Callsign.GetCallsignString(cs);
@@ -451,17 +430,14 @@ void CDextraProtocol::Task()
                 CClients *clients = g_Reflector.GetClients();
                 int index = -1;
                 CClient *client = NULL;
-                while ( (client = clients->FindNextClient(Callsign, Ip, PROTOCOL_DEXTRA, &index)) != NULL )
-                {
+                while ( (client = clients->FindNextClient(Callsign, Ip, PROTOCOL_DEXTRA, &index)) != NULL ) {
                    client->Alive();
                 }
                 g_Reflector.ReleaseClients();
             } else {
                 std::clog << "[DExtra][DEBUG] Ignored keepalive from unknown peer: callsign='" << normCallsign << "' IP='" << pktIpStr << "'" << std::endl;
             }
-        }
-        else
-        {
+        } else {
             std::cout << "DExtra packet (" << Buffer.size() << ")" << std::endl;
         }
     }
