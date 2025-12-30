@@ -77,6 +77,7 @@ public:
     void Task(void);
 
 protected:
+    std::mutex m_logMutex;
     // DExtra peering helpers
     enum PeerType { PEER_XLX, PEER_DEXTRA };
     struct DExtraPeerConfig {

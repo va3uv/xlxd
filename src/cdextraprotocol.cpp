@@ -23,6 +23,7 @@
 // ----------------------------------------------------------------------------
 
 #include "main.h"
+#include <mutex>
 #include <vector>
 #include <string.h>
 #include <fstream>
@@ -42,9 +43,15 @@ CDextraProtocol::~CDextraProtocol() {}
 // Load DExtra peers from config file
 void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
     // Print peer list before reload
-    std::clog << "[DExtra][DEBUG] Peer list BEFORE reload:" << std::endl;
+    {
+        std::lock_guard<std::mutex> lock(m_logMutex);
+        std::clog << "[DExtra][DEBUG] Peer list BEFORE reload:" << std::endl;
+    }
     for (const auto& peer : m_DExtraPeers) {
-        std::clog << "[DExtra][DEBUG]   callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "' handshakeComplete=" << (peer.handshakeComplete ? "true" : "false") << std::endl;
+        {
+            std::lock_guard<std::mutex> lock(m_logMutex);
+            std::clog << "[DExtra][DEBUG]   callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "' handshakeComplete=" << (peer.handshakeComplete ? "true" : "false") << std::endl;
+        }
     }
     // Preserve handshakeComplete for unchanged peers
     std::vector<DExtraPeerConfig> oldPeers = m_DExtraPeers;
@@ -97,12 +104,18 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
         for (const auto& oldPeer : oldPeers) {
             if (oldPeer.type == peer.type && oldPeer.remoteCallsign == peer.remoteCallsign && oldPeer.remoteIp == peer.remoteIp && oldPeer.localModule == peer.localModule && oldPeer.remoteModule == peer.remoteModule) {
                 peer.handshakeComplete = oldPeer.handshakeComplete;
-                std::clog << "[DExtra][DEBUG] Preserved handshakeComplete for peer " << peer.remoteCallsign << " at " << peer.remoteIp << " = " << (peer.handshakeComplete ? "true" : "false") << std::endl;
+                {
+                    std::lock_guard<std::mutex> lock(m_logMutex);
+                    std::clog << "[DExtra][DEBUG] Preserved handshakeComplete for peer " << peer.remoteCallsign << " at " << peer.remoteIp << " = " << (peer.handshakeComplete ? "true" : "false") << std::endl;
+                }
                 break;
             }
         }
         m_DExtraPeers.push_back(peer);
-        std::clog << "[DExtra][DEBUG] Added peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "' handshakeComplete=" << (peer.handshakeComplete ? "true" : "false") << std::endl;
+        {
+            std::lock_guard<std::mutex> lock(m_logMutex);
+            std::clog << "[DExtra][DEBUG] Added peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "' handshakeComplete=" << (peer.handshakeComplete ? "true" : "false") << std::endl;
+        }
     }
 
     // Remove clients for peers no longer in config
@@ -117,15 +130,24 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
             }
         }
         if (!found && oldPeer.handshakeComplete) {
-            std::clog << "[DExtra][DEBUG] Removing client for peer: callsign='" << oldPeer.remoteCallsign << "' IP='" << oldPeer.remoteIp << "' localModule='" << oldPeer.localModule << "' remoteModule='" << oldPeer.remoteModule << "' handshakeComplete=" << (oldPeer.handshakeComplete ? "true" : "false") << std::endl;
+            {
+                std::lock_guard<std::mutex> lock(m_logMutex);
+                std::clog << "[DExtra][DEBUG] Removing client for peer: callsign='" << oldPeer.remoteCallsign << "' IP='" << oldPeer.remoteIp << "' localModule='" << oldPeer.localModule << "' remoteModule='" << oldPeer.remoteModule << "' handshakeComplete=" << (oldPeer.handshakeComplete ? "true" : "false") << std::endl;
+            }
             // Remove client for this peer
             CIp ip(oldPeer.remoteIp.c_str());
             CClient *client = clients->FindClient(ip, PROTOCOL_DEXTRA);
             if (client != NULL) {
                 clients->RemoveClient(client);
-                std::clog << "[DExtra][DEBUG] Client removed for peer: callsign='" << oldPeer.remoteCallsign << "' IP='" << oldPeer.remoteIp << "'" << std::endl;
+                {
+                    std::lock_guard<std::mutex> lock(m_logMutex);
+                    std::clog << "[DExtra][DEBUG] Client removed for peer: callsign='" << oldPeer.remoteCallsign << "' IP='" << oldPeer.remoteIp << "'" << std::endl;
+                }
             } else {
-                std::clog << "[DExtra][DEBUG] No client found to remove for peer: callsign='" << oldPeer.remoteCallsign << "' IP='" << oldPeer.remoteIp << "'" << std::endl;
+                {
+                    std::lock_guard<std::mutex> lock(m_logMutex);
+                    std::clog << "[DExtra][DEBUG] No client found to remove for peer: callsign='" << oldPeer.remoteCallsign << "' IP='" << oldPeer.remoteIp << "'" << std::endl;
+                }
             }
         }
     }
@@ -146,7 +168,10 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
                         existing.handshakeComplete = true;
                     }
                     found = true;
-                    std::clog << "[DExtra][WARNING] Duplicate peer in config: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "'. Only the first occurrence with handshakeComplete=true will be used." << std::endl;
+                    {
+                        std::lock_guard<std::mutex> lock(m_logMutex);
+                        std::clog << "[DExtra][WARNING] Duplicate peer in config: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "'. Only the first occurrence with handshakeComplete=true will be used." << std::endl;
+                    }
                     break;
                 }
             }
@@ -157,9 +182,15 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
         m_DExtraPeers = dedupedPeers;
     }
     // Print peer list after reload
-    std::clog << "[DExtra][DEBUG] Peer list AFTER reload:" << std::endl;
+    {
+        std::lock_guard<std::mutex> lock(m_logMutex);
+        std::clog << "[DExtra][DEBUG] Peer list AFTER reload:" << std::endl;
+    }
     for (const auto& peer : m_DExtraPeers) {
-        std::clog << "[DExtra][DEBUG]   callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "' handshakeComplete=" << (peer.handshakeComplete ? "true" : "false") << std::endl;
+        {
+            std::lock_guard<std::mutex> lock(m_logMutex);
+            std::clog << "[DExtra][DEBUG]   callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "' handshakeComplete=" << (peer.handshakeComplete ? "true" : "false") << std::endl;
+        }
     }
 }
 
