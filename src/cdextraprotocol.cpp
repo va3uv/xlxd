@@ -714,7 +714,6 @@ void CDextraProtocol::EncodeConnectAckPacket(CBuffer *Buffer, int ProtRev)
     Buffer->Append((uint8)'A');
     Buffer->Append((uint8)'C');
     Buffer->Append((uint8)'K');
-}
 // ...existing code...
 }
 
@@ -743,5 +742,5 @@ bool CDextraProtocol::EncodeDvLastFramePacket(const CDvLastFramePacket &Packet, 
     Buffer->Append(tag2, sizeof(tag2));
     
     return true;
-}
+
 
