@@ -61,7 +61,19 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
             continue;
         }
         DExtraPeerConfig peer;
-        peer.remoteIp = ip;
+        // Resolve hostname to IP if needed
+        std::string resolvedIp = ip;
+        struct addrinfo hints = {0}, *res = nullptr;
+        hints.ai_family = AF_INET;
+        int err = getaddrinfo(ip.c_str(), nullptr, &hints, &res);
+        if (err == 0 && res != nullptr) {
+            char ipstr[INET_ADDRSTRLEN] = {0};
+            struct sockaddr_in *ipv4 = (struct sockaddr_in *)res->ai_addr;
+            inet_ntop(AF_INET, &(ipv4->sin_addr), ipstr, sizeof(ipstr));
+            resolvedIp = ipstr;
+            freeaddrinfo(res);
+        }
+        peer.remoteIp = resolvedIp;
         peer.localModule = modules[0];
         peer.remoteModule = modules[1];
         if (typeOrCallsign.substr(0,3) == "XRF") {
