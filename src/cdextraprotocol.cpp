@@ -247,8 +247,7 @@ void CDextraProtocol::Task()
             }
             g_Reflector.ReleaseClients();
         }
-        }
-            else if ( IsValidConnectPacket(Buffer, &Callsign, &ToLinkModule, &ProtRev) )
+        else if ( IsValidConnectPacket(Buffer, &Callsign, &ToLinkModule, &ProtRev) )
             {
                 std::cout << "DExtra connect packet for module " << ToLinkModule << " from " << Callsign << " at " << Ip << " rev " << ProtRev << std::endl;
                 // Mark handshake complete for this peer (for any valid connect packet)
