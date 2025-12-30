@@ -705,10 +705,11 @@ bool CDextraProtocol::EncodeDvHeaderPacket(const CDvHeaderPacket &Packet, CBuffe
     return false;
 }
 
-void CDextraProtocol::OnDvHeaderPacketIn(CDvHeaderPacket *Header, const CIp &Ip)
+bool CDextraProtocol::OnDvHeaderPacketIn(CDvHeaderPacket *Header, const CIp &Ip)
 {
     // Minimal stub: delete header to avoid leak
     delete Header;
+    return false;
 }
 
 void CDextraProtocol::HandleKeepalives()
