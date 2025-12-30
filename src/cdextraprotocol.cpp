@@ -30,6 +30,8 @@
 #include "cdextraprotocol.h"
 #include "creflector.h"
 #include "cgatekeeper.h"
+#include <netdb.h>
+#include <arpa/inet.h>
 // Constructor/Destructor
 CDextraProtocol::CDextraProtocol() : CProtocol() {
     // std::clog << "[DExtra] CDextraProtocol constructor called" << std::endl;
