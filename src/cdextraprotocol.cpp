@@ -140,11 +140,6 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
             CIp ip(oldPeer.remoteIp.c_str());
             CClient *client = clients->FindClient(ip, PROTOCOL_DEXTRA);
             if (client != NULL) {
-                void CDextraProtocol::EncodeKeepAlivePacket(CBuffer *Buffer)
-                {
-                    Buffer->Set(GetReflectorCallsign());
-                }
-
                 clients->RemoveClient(client);
                 {
                     std::lock_guard<std::mutex> lock(m_logMutex);
@@ -697,37 +692,7 @@ CDvLastFramePacket *CDextraProtocol::IsValidDvLastFramePacket(const CBuffer &Buf
 ////////////////////////////////////////////////////////////////////////////////////////
 // packet encoding helpers
 
-void CDextraProtocol::EncodeKeepAlivePacket(CBuffer *Buffer)
-bool CDextraProtocol::OnDvHeaderPacketIn(CDvHeaderPacket *Header, const CIp &Ip)
-{
-    // Debug log for header packet arrival
-    {
-        std::lock_guard<std::mutex> lock(m_logMutex);
-        std::clog << "[DExtra][DEBUG] OnDvHeaderPacketIn: callsign='" << Header->GetMyCallsign() << "' rpt2='" << Header->GetRpt2Callsign() << "' streamId=" << Header->GetStreamId() << " from IP='" << Ip << "'" << std::endl;
-    }
-
-    // Route the header packet to all connected DExtra clients except the sender
-    CClients *clients = g_Reflector.GetClients();
-    int index = -1;
-    CClient *client = NULL;
-    while ((client = clients->FindNextClient(Header->GetMyCallsign(), Ip, PROTOCOL_DEXTRA, &index)) != NULL) {
-        // Only forward to clients that are not the sender
-        if (client->GetIp() != Ip) {
-            CBuffer buffer;
-            EncodeDvHeaderPacket(*Header, &buffer);
-            client->Send(buffer);
-            {
-                std::lock_guard<std::mutex> lock(m_logMutex);
-                std::clog << "[DExtra][DEBUG] Forwarded DV header to client IP='" << client->GetIp() << "'" << std::endl;
-            }
-        }
-    }
-    g_Reflector.ReleaseClients();
-    return true;
-}
-{
-   Buffer->Set(GetReflectorCallsign());
-}
+// ...existing code...
 
 void CDextraProtocol::EncodeConnectAckPacket(CBuffer *Buffer, int ProtRev)
 {
@@ -752,38 +717,7 @@ void CDextraProtocol::EncodeConnectAckPacket(CBuffer *Buffer, int ProtRev)
     Buffer->Append((uint8)'K');
 }
 
-void CDextraProtocol::EncodeConnectNackPacket(CBuffer *Buffer)
-{
-    uint8 tag[] = { 'N','A','K',0 };
-    Buffer->resize(Buffer->size()-1);
-    Buffer->Append(tag, sizeof(tag));
-}
-
-void CDextraProtocol::EncodeDisconnectPacket(CBuffer *Buffer)
-{
-    uint8 tag[] = { ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',0 };
-    Buffer->Set(tag, sizeof(tag));
-}
-
-void CDextraProtocol::EncodeDisconnectedPacket(CBuffer *Buffer)
-{
-    uint8 tag[] = { 'D','I','S','C','O','N','N','E','C','T','E','D' };
-    Buffer->Set(tag, sizeof(tag));
-}
-
-bool CDextraProtocol::EncodeDvHeaderPacket(const CDvHeaderPacket &Packet, CBuffer *Buffer) const
-{
-    uint8 tag[]	= { 'D','S','V','T',0x10,0x00,0x00,0x00,0x20,0x00,0x01,0x02 };
-    struct dstar_header DstarHeader;
-    
-    Packet.ConvertToDstarStruct(&DstarHeader);
-    
-    Buffer->Set(tag, sizeof(tag));
-    Buffer->Append(Packet.GetStreamId());
-    Buffer->Append((uint8)0x80);
-    Buffer->Append((uint8 *)&DstarHeader, sizeof(struct dstar_header));
-    
-    return true;
+// ...existing code...
 }
 
 bool CDextraProtocol::EncodeDvFramePacket(const CDvFramePacket &Packet, CBuffer *Buffer) const
