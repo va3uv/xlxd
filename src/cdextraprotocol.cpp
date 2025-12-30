@@ -134,19 +134,23 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
     {
         std::vector<DExtraPeerConfig> dedupedPeers;
         for (const auto& peer : m_DExtraPeers) {
-            bool duplicate = false;
-            for (const auto& existing : dedupedPeers) {
+            bool found = false;
+            for (auto& existing : dedupedPeers) {
                 if (peer.type == existing.type &&
                     peer.remoteCallsign == existing.remoteCallsign &&
                     peer.remoteIp == existing.remoteIp &&
                     peer.localModule == existing.localModule &&
                     peer.remoteModule == existing.remoteModule) {
-                    duplicate = true;
-                    std::clog << "[DExtra][WARNING] Duplicate peer in config: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "'. Only the first occurrence will be used." << std::endl;
+                    // If either has handshakeComplete true, keep it true
+                    if (peer.handshakeComplete || existing.handshakeComplete) {
+                        existing.handshakeComplete = true;
+                    }
+                    found = true;
+                    std::clog << "[DExtra][WARNING] Duplicate peer in config: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "'. Only the first occurrence with handshakeComplete=true will be used." << std::endl;
                     break;
                 }
             }
-            if (!duplicate) {
+            if (!found) {
                 dedupedPeers.push_back(peer);
             }
         }
