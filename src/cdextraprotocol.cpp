@@ -336,17 +336,22 @@ void CDextraProtocol::Task()
             else if ( IsValidKeepAlivePacket(Buffer, &Callsign) )
             {
                 // Only respond to keepalives from currently configured peers
+                char cs[9] = {0};
+                Callsign.GetCallsignString(cs);
+                std::string normCallsign(cs);
+                normCallsign.resize(8, ' ');
+                std::string pktIpStr = std::string((const char*)Ip);
                 bool peerFound = false;
+                std::clog << "[DExtra][DEBUG] Incoming keepalive: callsign='" << normCallsign << "' IP='" << pktIpStr << "'" << std::endl;
                 for (auto& peer : m_DExtraPeers) {
                     std::string peerNormCallsign = peer.remoteCallsign;
                     peerNormCallsign.resize(8, ' ');
-                    char cs[9] = {0};
-                    Callsign.GetCallsignString(cs);
-                    std::string normCallsign(cs);
-                    normCallsign.resize(8, ' ');
                     std::string peerIpStr = peer.remoteIp;
-                    std::string pktIpStr = std::string((const char*)Ip);
-                    if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr && peer.localModule == Callsign.GetModule()) {
+                    std::clog << "[DExtra][DEBUG] Configured peer: callsign='" << peerNormCallsign << "' IP='" << peerIpStr << "'" << std::endl;
+                    if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr) {
+                        if (!peer.handshakeComplete) {
+                            std::clog << "[DExtra] Handshake complete for peer (keepalive) " << peer.remoteCallsign << " at " << peer.remoteIp << std::endl;
+                        }
                         peer.handshakeComplete = true;
                         peerFound = true;
                     }
@@ -361,7 +366,7 @@ void CDextraProtocol::Task()
                     }
                     g_Reflector.ReleaseClients();
                 } else {
-                    // Ignore keepalive from unknown peer
+                    std::clog << "[DExtra][DEBUG] Ignored keepalive from unknown peer: callsign='" << normCallsign << "' IP='" << pktIpStr << "'" << std::endl;
                 }
             }
             else
