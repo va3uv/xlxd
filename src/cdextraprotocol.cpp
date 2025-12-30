@@ -327,6 +327,10 @@ void CDextraProtocol::Task()
             if (clients->FindClient(Ip, PROTOCOL_DEXTRA) == NULL) {
                 CDextraClient *client = new CDextraClient(CCallsign(callsign), Ip, localModule, 2);
                 clients->AddClient(client);
+                {
+                    std::lock_guard<std::mutex> lock(m_logMutex);
+                    std::clog << "[DExtra][DEBUG] Created new DExtra client for callsign='" << callsign << "' IP='" << Ip << "' module='" << localModule << "'" << std::endl;
+                }
             }
             g_Reflector.ReleaseClients();
         }
@@ -366,6 +370,10 @@ void CDextraProtocol::Task()
                         if (clients->FindClient(Ip, PROTOCOL_DEXTRA) == NULL) {
                             CDextraClient *client = new CDextraClient(Callsign, Ip, ToLinkModule, ProtRev);
                             clients->AddClient(client);
+                            {
+                                std::lock_guard<std::mutex> lock(m_logMutex);
+                                std::clog << "[DExtra][DEBUG] Created new DExtra client for callsign='" << Callsign << "' IP='" << Ip << "' module='" << ToLinkModule << "'" << std::endl;
+                            }
                         }
                         g_Reflector.ReleaseClients();
                     } else {
@@ -539,6 +547,10 @@ bool CDextraProtocol::OnDvHeaderPacketIn(CDvHeaderPacket *Header, const CIp &Ip)
                 // keep the handle
                 m_Streams.push_back(stream);
                 newstream = true;
+                {
+                    std::lock_guard<std::mutex> lock(m_logMutex);
+                    std::clog << "[DExtra][DEBUG] Opened new stream for callsign='" << client->GetCallsign() << "' IP='" << Ip << "' module='" << client->GetReflectorModule() << "'" << std::endl;
+                }
             }
         }
         // release
