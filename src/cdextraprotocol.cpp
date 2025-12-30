@@ -40,6 +40,11 @@ CDextraProtocol::~CDextraProtocol() {}
 
 // Load DExtra peers from config file
 void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
+    // Print peer list before reload
+    std::clog << "[DExtra][DEBUG] Peer list BEFORE reload:" << std::endl;
+    for (const auto& peer : m_DExtraPeers) {
+        std::clog << "[DExtra][DEBUG]   callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "' handshakeComplete=" << (peer.handshakeComplete ? "true" : "false") << std::endl;
+    }
     // Preserve handshakeComplete for unchanged peers
     std::vector<DExtraPeerConfig> oldPeers = m_DExtraPeers;
     m_DExtraPeers.clear();
@@ -96,6 +101,7 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
             }
         }
         m_DExtraPeers.push_back(peer);
+        std::clog << "[DExtra][DEBUG] Added peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "' handshakeComplete=" << (peer.handshakeComplete ? "true" : "false") << std::endl;
     }
 
     // Remove clients for peers no longer in config
@@ -123,6 +129,11 @@ void CDextraProtocol::LoadDExtraPeers(const std::string& filename) {
         }
     }
     g_Reflector.ReleaseClients();
+    // Print peer list after reload
+    std::clog << "[DExtra][DEBUG] Peer list AFTER reload:" << std::endl;
+    for (const auto& peer : m_DExtraPeers) {
+        std::clog << "[DExtra][DEBUG]   callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "' handshakeComplete=" << (peer.handshakeComplete ? "true" : "false") << std::endl;
+    }
 }
 
 // Encode a DExtra connect packet
