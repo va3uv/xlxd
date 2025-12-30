@@ -561,7 +561,6 @@ void CDextraProtocol::Task()
                 }
             }
         }
-    }
     // handle end of streaming timeout
     CheckStreamsTimeout();
     // handle queue from reflector
