@@ -353,7 +353,9 @@ void CDextraProtocol::Task()
                 for (const auto& peer : m_DExtraPeers) {
                     std::string peerNormCallsign = peer.remoteCallsign;
                     peerNormCallsign.resize(8, ' ');
-                    std::string normCallsign = Callsign.GetCallsignString();
+                    char cs[9] = {0};
+                    Callsign.GetCallsignString(cs);
+                    std::string normCallsign(cs);
                     normCallsign.resize(8, ' ');
                     std::string peerIpStr = peer.remoteIp;
                     std::string pktIpStr = std::string((const char*)Ip);
