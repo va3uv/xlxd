@@ -251,10 +251,12 @@ void CDextraProtocol::Task()
                 normCallsign.resize(8, ' ');
                 std::string pktIpStr = std::string((const char*)Ip);
                 bool matchedPeer = false;
+                std::clog << "[DExtra][DEBUG] Incoming connect: callsign='" << normCallsign << "' IP='" << pktIpStr << "' module='" << ToLinkModule << "'" << std::endl;
                 for (auto& peer : m_DExtraPeers) {
                     std::string peerNormCallsign = peer.remoteCallsign;
                     peerNormCallsign.resize(8, ' ');
                     std::string peerIpStr = peer.remoteIp;
+                    std::clog << "[DExtra][DEBUG] Configured peer: callsign='" << peerNormCallsign << "' IP='" << peerIpStr << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "'" << std::endl;
                     if (peerNormCallsign == normCallsign && peerIpStr == pktIpStr) {
                         if (!peer.handshakeComplete) {
                             std::clog << "[DExtra] Handshake complete for peer " << peer.remoteCallsign << " at " << peer.remoteIp << std::endl;
