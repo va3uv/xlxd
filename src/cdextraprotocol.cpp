@@ -561,18 +561,7 @@ void CDextraProtocol::Task()
                 }
             }
         }
-    // handle end of streaming timeout
-    CheckStreamsTimeout();
-    // handle queue from reflector
-    HandleQueue();
-    // keep client alive
-    if ( m_LastKeepaliveTime.DurationSinceNow() > DEXTRA_KEEPALIVE_PERIOD )
-    {
-        HandleKeepalives();
-        m_LastKeepaliveTime.Now();
-    }
-}
-}
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////
