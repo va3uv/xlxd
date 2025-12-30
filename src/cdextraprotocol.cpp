@@ -190,7 +190,6 @@ void CDextraProtocol::Task()
         PeerWithConfiguredXLX();
         m_LastPeerTime.Now();
     }
-
     // any incoming packet ?
     if ( m_Socket.Receive(&Buffer, &Ip, 20) != -1 )
     {
