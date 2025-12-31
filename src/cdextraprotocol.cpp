@@ -304,10 +304,10 @@ void CDextraProtocol::Task()
                     m_connectCount[i]++;
                     std::clog << "[DExtra][DEBUG] Sent second connect to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
                 }
-                // Set handshakeComplete only if we have sent 2 connects and received 2 ACKs
-                if (m_connectCount[i] == 2 && m_ackCount[i] == 2) {
+                // Set handshakeComplete after first 14-byte ACK received
+                if (m_ackCount[i] >= 1) {
                     peer.handshakeComplete = true;
-                    std::clog << "[DExtra][DEBUG] Handshake complete for peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
+                    std::clog << "[DExtra][DEBUG] Handshake complete for peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' (after first 14-byte ACK)" << std::endl;
                 }
             } else {
                 // Handshake complete: send 9-byte keepalive every 10 seconds (or as required)
