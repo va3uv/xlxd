@@ -340,12 +340,12 @@ void CDextraProtocol::Task()
             }
             std::clog << std::dec << std::endl;
 
-            // Respond to every 11-byte connect with a 14-byte ACK (server socket only)
-            if (sockidx == 0 && bytes == 11) {
+            // Respond to every 11-byte connect with a 14-byte ACK (on either socket)
+            if (bytes == 11) {
                 for (size_t i = 0; i < m_DExtraPeers.size(); ++i) {
                     auto& peer = m_DExtraPeers[i];
                     if (peer.remoteIp == std::string((const char *)remoteIp)) {
-                        std::clog << "[DExtra][DEBUG] 11-byte connect detected from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'. Sending 14-byte ACK." << std::endl;
+                        std::clog << "[DExtra][DEBUG] 11-byte connect detected from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'. Sending 14-byte ACK on port " << (sockidx == 0 ? "30001" : "30002") << "." << std::endl;
                         CBuffer ackPacket;
                         EncodeConnectAckPacket(&ackPacket, 0);
                         sock->Send(ackPacket, remoteIp, DEXTRA_PORT);
