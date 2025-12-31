@@ -272,8 +272,32 @@ void CDextraProtocol::Task()
         std::lock_guard<std::mutex> lock(m_logMutex);
         std::clog << "[DExtra][DEBUG] Task() running in thread." << std::endl;
     }
-    // Call PeerWithConfiguredXLX() every loop for testing
-    PeerWithConfiguredXLX();
+    // Throttle connect attempts: only send connect every 5 seconds per peer
+    // Handshake state: track sent/received ACKs per peer
+    static std::vector<time_t> lastConnectTimes(m_DExtraPeers.size(), 0);
+    static std::vector<bool> sentAck(m_DExtraPeers.size(), false);
+    static std::vector<bool> receivedAck(m_DExtraPeers.size(), false);
+    time_t now = time(nullptr);
+    char cs[9] = {0};
+    GetReflectorCallsign().GetCallsignString(cs);
+    std::string localCallsign(cs);
+    for (size_t i = 0; i < m_DExtraPeers.size(); ++i) {
+        auto& peer = m_DExtraPeers[i];
+        if (peer.type == PEER_DEXTRA) {
+            // Only send connect if handshake not complete and we haven't received ACK yet
+            if (!receivedAck[i] && now - lastConnectTimes[i] >= 5) {
+                lastConnectTimes[i] = now;
+                std::clog << "[DExtra][DEBUG] Throttled connect: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' handshakeComplete=" << (peer.handshakeComplete ? "true" : "false") << std::endl;
+                CIp remoteIp(peer.remoteIp.c_str());
+                CBuffer connectPacket;
+                EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
+                m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
+                std::cout << "[DExtra] Sent connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
+            }
+            // Set handshakeComplete only if both sent and received ACK
+            peer.handshakeComplete = sentAck[i] && receivedAck[i];
+        }
+    }
 
     // Receive and process incoming UDP packets
     CIp remoteIp;
@@ -288,13 +312,27 @@ void CDextraProtocol::Task()
         }
         std::clog << std::dec << std::endl;
 
+        // Respond to every 11-byte connect with a 14-byte ACK
+        if (bytes == 11) {
+            for (size_t i = 0; i < m_DExtraPeers.size(); ++i) {
+                auto& peer = m_DExtraPeers[i];
+                if (peer.remoteIp == std::string((const char *)remoteIp)) {
+                    std::clog << "[DExtra][DEBUG] 11-byte connect detected from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'. Sending 14-byte ACK." << std::endl;
+                    CBuffer ackPacket;
+                    EncodeConnectAckPacket(&ackPacket, 0);
+                    m_Socket.Send(ackPacket, remoteIp, DEXTRA_PORT);
+                    sentAck[i] = true;
+                }
+            }
+        }
         // Check for DExtra ACK packet (14 bytes, ends with 'ACK')
         if (bytes == 14 && Buffer.data()[11] == 'A' && Buffer.data()[12] == 'C' && Buffer.data()[13] == 'K') {
-            // Find matching peer by IP
-            for (auto& peer : m_DExtraPeers) {
-                if (peer.remoteIp == std::string((const char *)remoteIp) && !peer.handshakeComplete) {
-                    peer.handshakeComplete = true;
-                    std::clog << "[DExtra][DEBUG] Connection ACK received from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'. handshakeComplete set to true." << std::endl;
+            std::clog << "[DExtra][DEBUG] 14-byte ACK detected from " << remoteIp << std::endl;
+            for (size_t i = 0; i < m_DExtraPeers.size(); ++i) {
+                auto& peer = m_DExtraPeers[i];
+                if (peer.remoteIp == std::string((const char *)remoteIp)) {
+                    receivedAck[i] = true;
+                    std::clog << "[DExtra][DEBUG] Connection ACK received from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'. receivedAck set to true." << std::endl;
                 }
             }
         }
