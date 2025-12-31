@@ -1,10 +1,6 @@
 //
 //  cdextraprotocol.cpp
 //  xlxd
-// ...existing code...
-
-// Implementation moved to correct class scope below
-
 // ----------------------------------------------------------------------------
 //    This file is part of xlxd.
 //
@@ -249,7 +245,8 @@ bool CDextraProtocol::Init(void)
     // update the reflector callsign
     m_ReflectorCallsign.PatchCallsign(0, (const uint8 *)"XRF", 3);
     // create our socket
-    ok &= m_Socket.Open(DEXTRA_PORT);
+    ok &= m_Socket.Open(DEXTRA_PORT); // server: 30001
+    ok &= m_ClientSocket.Open(30002); // client: 30002
     if (!ok) {
         std::cout << "Error opening socket on port UDP" << DEXTRA_PORT << " on ip " << g_Reflector.GetListenIp() << std::endl;
     }
@@ -290,9 +287,9 @@ void CDextraProtocol::Task()
                     CIp remoteIp(peer.remoteIp.c_str());
                     CBuffer connectPacket;
                     EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
-                    m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
+                    m_ClientSocket.Send(connectPacket, remoteIp, DEXTRA_PORT);
                     m_connectCount[i]++;
-                    std::clog << "[DExtra][DEBUG] Sent first connect to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
+                    std::clog << "[DExtra][DEBUG] Sent first connect to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' (from port 30002)" << std::endl;
                 }
                 // Only send second connect after first ACK received
                 if (m_connectCount[i] == 1 && m_ackCount[i] == 1 && now - m_lastConnectTimes[i] >= 1) {
@@ -300,9 +297,9 @@ void CDextraProtocol::Task()
                     CIp remoteIp(peer.remoteIp.c_str());
                     CBuffer connectPacket;
                     EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
-                    m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
+                    m_ClientSocket.Send(connectPacket, remoteIp, DEXTRA_PORT);
                     m_connectCount[i]++;
-                    std::clog << "[DExtra][DEBUG] Sent second connect to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
+                    std::clog << "[DExtra][DEBUG] Sent second connect to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' (from port 30002)" << std::endl;
                 }
                 // Set handshakeComplete after first 14-byte ACK received
                 if (m_ackCount[i] >= 1) {
@@ -313,7 +310,7 @@ void CDextraProtocol::Task()
                 // Handshake complete: send 9-byte keepalive every 10 seconds (or as required)
                 if (now - m_lastConnectTimes[i] >= 10) {
                     m_lastConnectTimes[i] = now;
-                    std::clog << "[DExtra][DEBUG] Sending 9-byte keepalive to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
+                    std::clog << "[DExtra][DEBUG] Sending 9-byte keepalive to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' (from port 30002)" << std::endl;
                     CIp remoteIp(peer.remoteIp.c_str());
                     CBuffer keepalivePacket;
                     // DExtra keepalive: 9 bytes: 8 (callsign) + 1 (module)
@@ -321,46 +318,49 @@ void CDextraProtocol::Task()
                     strncpy(cs9, localCallsign.c_str(), 8);
                     keepalivePacket.Append((uint8*)cs9, 8);
                     keepalivePacket.Append((uint8)peer.localModule);
-                    m_Socket.Send(keepalivePacket, remoteIp, DEXTRA_PORT);
-                    std::cout << "[DExtra] Sent keepalive to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (module " << peer.localModule << ")" << std::endl;
+                    m_ClientSocket.Send(keepalivePacket, remoteIp, DEXTRA_PORT);
+                    std::cout << "[DExtra] Sent keepalive to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (module " << peer.localModule << ", from port 30002)" << std::endl;
                 }
             }
         }
     }
 
-    // Receive and process incoming UDP packets
-    CIp remoteIp;
-    int bytes = m_Socket.Receive(&Buffer, &remoteIp, 0); // 0 = non-blocking
-    if (bytes > 0) {
-        std::lock_guard<std::mutex> lock(m_logMutex);
-        std::clog << "[DExtra][DEBUG] Received UDP packet from " << remoteIp << ", length=" << bytes << std::endl;
-        // Print hex dump for debugging
-        std::clog << "[DExtra][DEBUG] Packet hex: ";
-        for (int i = 0; i < bytes; ++i) {
-            std::clog << std::hex << std::uppercase << (int)Buffer.data()[i] << " ";
-        }
-        std::clog << std::dec << std::endl;
+    // Receive and process incoming UDP packets on both sockets
+    for (int sockidx = 0; sockidx < 2; ++sockidx) {
+        CUdpSocket* sock = (sockidx == 0) ? &m_Socket : &m_ClientSocket;
+        CIp remoteIp;
+        int bytes = sock->Receive(&Buffer, &remoteIp, 0); // 0 = non-blocking
+        if (bytes > 0) {
+            std::lock_guard<std::mutex> lock(m_logMutex);
+            std::clog << "[DExtra][DEBUG] Received UDP packet on " << (sockidx == 0 ? "30001" : "30002") << " from " << remoteIp << ", length=" << bytes << std::endl;
+            // Print hex dump for debugging
+            std::clog << "[DExtra][DEBUG] Packet hex: ";
+            for (int i = 0; i < bytes; ++i) {
+                std::clog << std::hex << std::uppercase << (int)Buffer.data()[i] << " ";
+            }
+            std::clog << std::dec << std::endl;
 
-        // Respond to every 11-byte connect with a 14-byte ACK
-        if (bytes == 11) {
-            for (size_t i = 0; i < m_DExtraPeers.size(); ++i) {
-                auto& peer = m_DExtraPeers[i];
-                if (peer.remoteIp == std::string((const char *)remoteIp)) {
-                    std::clog << "[DExtra][DEBUG] 11-byte connect detected from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'. Sending 14-byte ACK." << std::endl;
-                    CBuffer ackPacket;
-                    EncodeConnectAckPacket(&ackPacket, 0);
-                    m_Socket.Send(ackPacket, remoteIp, DEXTRA_PORT);
+            // Respond to every 11-byte connect with a 14-byte ACK (server socket only)
+            if (sockidx == 0 && bytes == 11) {
+                for (size_t i = 0; i < m_DExtraPeers.size(); ++i) {
+                    auto& peer = m_DExtraPeers[i];
+                    if (peer.remoteIp == std::string((const char *)remoteIp)) {
+                        std::clog << "[DExtra][DEBUG] 11-byte connect detected from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'. Sending 14-byte ACK." << std::endl;
+                        CBuffer ackPacket;
+                        EncodeConnectAckPacket(&ackPacket, 0);
+                        sock->Send(ackPacket, remoteIp, DEXTRA_PORT);
+                    }
                 }
             }
-        }
-        // Check for DExtra ACK packet (14 bytes, ends with 'ACK')
-        if (bytes == 14 && Buffer.data()[11] == 'A' && Buffer.data()[12] == 'C' && Buffer.data()[13] == 'K') {
-            std::clog << "[DExtra][DEBUG] 14-byte ACK detected from " << remoteIp << std::endl;
-            for (size_t i = 0; i < m_DExtraPeers.size(); ++i) {
-                auto& peer = m_DExtraPeers[i];
-                if (peer.remoteIp == std::string((const char *)remoteIp)) {
-                    m_ackCount[i]++;
-                    std::clog << "[DExtra][DEBUG] Connection ACK received from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'. ackCount=" << m_ackCount[i] << std::endl;
+            // Check for DExtra ACK packet (14 bytes, ends with 'ACK')
+            if (bytes == 14 && Buffer.data()[11] == 'A' && Buffer.data()[12] == 'C' && Buffer.data()[13] == 'K') {
+                std::clog << "[DExtra][DEBUG] 14-byte ACK detected from " << remoteIp << std::endl;
+                for (size_t i = 0; i < m_DExtraPeers.size(); ++i) {
+                    auto& peer = m_DExtraPeers[i];
+                    if (peer.remoteIp == std::string((const char *)remoteIp)) {
+                        m_ackCount[i]++;
+                        std::clog << "[DExtra][DEBUG] Connection ACK received from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'. ackCount=" << m_ackCount[i] << std::endl;
+                    }
                 }
             }
         }

@@ -77,6 +77,8 @@ public:
     void Task(void);
 
 protected:
+    // DExtra client socket (for outgoing peering, bind to 30002)
+    CUdpSocket m_ClientSocket;
     // Handshake/keepalive state tracking per peer
     std::vector<time_t> m_lastConnectTimes;
     std::vector<int> m_ackCount;
