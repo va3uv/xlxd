@@ -311,8 +311,8 @@ void CDextraProtocol::Task()
                     std::clog << "[DExtra][DEBUG] Handshake complete for peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
                 }
             } else {
-                // Handshake complete: send 9-byte keepalive every 5 seconds
-                if (now - lastConnectTimes[i] >= 5) {
+                // Handshake complete: send 9-byte keepalive every 10 seconds (or as required)
+                if (now - lastConnectTimes[i] >= 10) {
                     lastConnectTimes[i] = now;
                     std::clog << "[DExtra][DEBUG] Sending 9-byte keepalive to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
                     CIp remoteIp(peer.remoteIp.c_str());
