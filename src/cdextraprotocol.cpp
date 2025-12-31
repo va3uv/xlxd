@@ -276,6 +276,7 @@ void CDextraProtocol::Task()
     // Handshake state: track sent/received ACKs per peer
     static std::vector<time_t> lastConnectTimes(m_DExtraPeers.size(), 0);
     static std::vector<int> ackCount(m_DExtraPeers.size(), 0); // count 14-byte ACKs received
+    static std::vector<int> connectCount(m_DExtraPeers.size(), 0); // count 11-byte connects sent
     time_t now = time(nullptr);
     char cs[9] = {0};
     GetReflectorCallsign().GetCallsignString(cs);
@@ -284,18 +285,28 @@ void CDextraProtocol::Task()
         auto& peer = m_DExtraPeers[i];
         if (peer.type == PEER_DEXTRA) {
             if (!peer.handshakeComplete) {
-                // Only send connect if handshake not complete and we have not received 2 ACKs yet
-                if (ackCount[i] < 2 && now - lastConnectTimes[i] >= 5) {
+                // Only send first connect if none sent yet
+                if (connectCount[i] == 0 && now - lastConnectTimes[i] >= 1) {
                     lastConnectTimes[i] = now;
-                    std::clog << "[DExtra][DEBUG] Throttled connect: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' handshakeComplete=false" << std::endl;
                     CIp remoteIp(peer.remoteIp.c_str());
                     CBuffer connectPacket;
                     EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
                     m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
-                    std::cout << "[DExtra] Sent connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
+                    connectCount[i]++;
+                    std::clog << "[DExtra][DEBUG] Sent first connect to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
                 }
-                // Set handshakeComplete only if we have received 2 ACKs
-                if (ackCount[i] >= 2) {
+                // Only send second connect after first ACK received
+                if (connectCount[i] == 1 && ackCount[i] == 1 && now - lastConnectTimes[i] >= 1) {
+                    lastConnectTimes[i] = now;
+                    CIp remoteIp(peer.remoteIp.c_str());
+                    CBuffer connectPacket;
+                    EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
+                    m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
+                    connectCount[i]++;
+                    std::clog << "[DExtra][DEBUG] Sent second connect to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
+                }
+                // Set handshakeComplete only if we have sent 2 connects and received 2 ACKs
+                if (connectCount[i] == 2 && ackCount[i] == 2) {
                     peer.handshakeComplete = true;
                     std::clog << "[DExtra][DEBUG] Handshake complete for peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
                 }
