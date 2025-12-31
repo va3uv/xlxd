@@ -413,4 +413,23 @@ CDvHeaderPacket *CDextraProtocol::IsValidDvHeaderPacket(const CBuffer &Buffer) c
     return const_cast<CDextraProtocol*>(this)->IsValidDvHeaderPacket(Buffer);
 }
 
+CDvHeaderPacket *CDextraProtocol::IsValidDvHeaderPacket(const CBuffer &Buffer)
+{
+    CDvHeaderPacket *header = NULL;
+    if ( (Buffer.size() == 56) && (Buffer.Compare((uint8 *)"DSVT", 4) == 0) &&
+         (Buffer.data()[4] == 0x10) && (Buffer.data()[8] == 0x20) )
+    {
+        // create packet
+        header = new CDvHeaderPacket((struct dstar_header *)&(Buffer.data()[15]),
+                                *((uint16 *)&(Buffer.data()[12])), 0x80);
+        // check validity of packet
+        if ( !header->IsValid() )
+        {
+            delete header;
+            header = NULL;
+        }
+    }
+    return header;
+}
+
 
