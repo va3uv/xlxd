@@ -274,8 +274,32 @@ void CDextraProtocol::Task()
     }
     // Call PeerWithConfiguredXLX() every loop for testing
     PeerWithConfiguredXLX();
-    // ...existing Task() logic goes here...
-    // Ensure all logic and local variables are inside this function
+
+    // Receive and process incoming UDP packets
+    CIp remoteIp;
+    int bytes = m_Socket.Receive(&Buffer, &remoteIp, 0); // 0 = non-blocking
+    if (bytes > 0) {
+        std::lock_guard<std::mutex> lock(m_logMutex);
+        std::clog << "[DExtra][DEBUG] Received UDP packet from " << remoteIp << ", length=" << bytes << std::endl;
+        // Print hex dump for debugging
+        std::clog << "[DExtra][DEBUG] Packet hex: ";
+        for (int i = 0; i < bytes; ++i) {
+            std::clog << std::hex << std::uppercase << (int)Buffer.data()[i] << " ";
+        }
+        std::clog << std::dec << std::endl;
+
+        // Check for DExtra ACK packet (14 bytes, ends with 'ACK')
+        if (bytes == 14 && Buffer.data()[11] == 'A' && Buffer.data()[12] == 'C' && Buffer.data()[13] == 'K') {
+            // Find matching peer by IP
+            for (auto& peer : m_DExtraPeers) {
+                if (peer.remoteIp == std::string((const char *)remoteIp) && !peer.handshakeComplete) {
+                    peer.handshakeComplete = true;
+                    std::clog << "[DExtra][DEBUG] Connection ACK received from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'. handshakeComplete set to true." << std::endl;
+                }
+            }
+        }
+    }
+    // ...existing Task() logic...
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
