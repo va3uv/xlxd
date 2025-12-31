@@ -284,18 +284,35 @@ void CDextraProtocol::Task()
     for (size_t i = 0; i < m_DExtraPeers.size(); ++i) {
         auto& peer = m_DExtraPeers[i];
         if (peer.type == PEER_DEXTRA) {
-            // Only send connect if handshake not complete and we haven't received ACK yet
-            if (!receivedAck[i] && now - lastConnectTimes[i] >= 5) {
-                lastConnectTimes[i] = now;
-                std::clog << "[DExtra][DEBUG] Throttled connect: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' handshakeComplete=" << (peer.handshakeComplete ? "true" : "false") << std::endl;
-                CIp remoteIp(peer.remoteIp.c_str());
-                CBuffer connectPacket;
-                EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
-                m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
-                std::cout << "[DExtra] Sent connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
+            if (!peer.handshakeComplete) {
+                // Only send connect if handshake not complete and we haven't received ACK yet
+                if (!receivedAck[i] && now - lastConnectTimes[i] >= 5) {
+                    lastConnectTimes[i] = now;
+                    std::clog << "[DExtra][DEBUG] Throttled connect: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' handshakeComplete=false" << std::endl;
+                    CIp remoteIp(peer.remoteIp.c_str());
+                    CBuffer connectPacket;
+                    EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
+                    m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
+                    std::cout << "[DExtra] Sent connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
+                }
+                // Set handshakeComplete only if both sent and received ACK
+                peer.handshakeComplete = sentAck[i] && receivedAck[i];
+            } else {
+                // Handshake complete: send 9-byte keepalive every 5 seconds
+                if (now - lastConnectTimes[i] >= 5) {
+                    lastConnectTimes[i] = now;
+                    std::clog << "[DExtra][DEBUG] Sending 9-byte keepalive to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
+                    CIp remoteIp(peer.remoteIp.c_str());
+                    CBuffer keepalivePacket;
+                    // DExtra keepalive: 9 bytes: 8 (callsign) + 1 (module)
+                    char cs9[9] = {0};
+                    strncpy(cs9, localCallsign.c_str(), 8);
+                    keepalivePacket.Append((uint8*)cs9, 8);
+                    keepalivePacket.Append((uint8)peer.localModule);
+                    m_Socket.Send(keepalivePacket, remoteIp, DEXTRA_PORT);
+                    std::cout << "[DExtra] Sent keepalive to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (module " << peer.localModule << ")" << std::endl;
+                }
             }
-            // Set handshakeComplete only if both sent and received ACK
-            peer.handshakeComplete = sentAck[i] && receivedAck[i];
         }
     }
 
