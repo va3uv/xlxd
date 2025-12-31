@@ -77,6 +77,10 @@ public:
     void Task(void);
 
 protected:
+    // Handshake/keepalive state tracking per peer
+    std::vector<time_t> m_lastConnectTimes;
+    std::vector<int> m_ackCount;
+    std::vector<int> m_connectCount;
     std::mutex m_logMutex;
     // DExtra peering helpers
     enum PeerType { PEER_XLX, PEER_DEXTRA };
