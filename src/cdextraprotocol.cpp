@@ -210,26 +210,27 @@ void CDextraProtocol::EncodeConnectPacket(const std::string& localCallsign, char
 
 // Send connect packets to all configured peers
 void CDextraProtocol::PeerWithConfiguredXLX() {
-    // Use the local reflector callsign for outgoing connects
+    {
+        std::lock_guard<std::mutex> lock(m_logMutex);
+        std::clog << "[DExtra][DEBUG] PeerWithConfiguredXLX() called, " << m_DExtraPeers.size() << " peers configured" << std::endl;
+    }
     char cs[9] = {0};
     GetReflectorCallsign().GetCallsignString(cs);
     std::string localCallsign(cs);
-    // std::clog << "[DExtra] PeerWithConfiguredXLX() called, " << m_DExtraPeers.size() << " peers configured" << std::endl;
     for (auto& peer : m_DExtraPeers) {
         if (peer.type == PEER_DEXTRA) {
             std::clog << "[DExtra][DEBUG] Peer connect check: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' handshakeComplete=" << (peer.handshakeComplete ? "true" : "false") << std::endl;
             if (!peer.handshakeComplete) {
+                std::clog << "[DExtra][DEBUG] Attempting to send connect to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' localModule='" << peer.localModule << "' remoteModule='" << peer.remoteModule << "'" << std::endl;
                 CIp remoteIp(peer.remoteIp.c_str());
                 CBuffer connectPacket;
                 EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
-                // std::clog << "[DEBUG] Sending DExtra connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << std::endl;
                 m_Socket.Send(connectPacket, remoteIp, DEXTRA_PORT);
                 std::cout << "[DExtra] Sent connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":" << DEXTRA_PORT << " (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
             } else {
                 // Optionally, send keepalives here if needed
             }
         } else if (peer.type == PEER_XLX) {
-            // TODO: Implement XLX peering logic here, using port 10002
             std::cout << "[DEBUG] Would send XLX connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":10002" << std::endl;
             std::cout << "[XLX] Would send XLX connect to " << peer.remoteCallsign << " at " << peer.remoteIp << ":10002 (local module " << peer.localModule << ", remote module " << peer.remoteModule << ")" << std::endl;
         }
@@ -267,6 +268,10 @@ bool CDextraProtocol::Init(void)
 void CDextraProtocol::Task()
 {
     CBuffer Buffer;
+    {
+        std::lock_guard<std::mutex> lock(m_logMutex);
+        std::clog << "[DExtra][DEBUG] Task() running in thread." << std::endl;
+    }
     // ...existing Task() logic goes here...
     // Ensure all logic and local variables are inside this function
 }
