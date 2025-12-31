@@ -272,6 +272,8 @@ void CDextraProtocol::Task()
         std::lock_guard<std::mutex> lock(m_logMutex);
         std::clog << "[DExtra][DEBUG] Task() running in thread." << std::endl;
     }
+    // Call PeerWithConfiguredXLX() every loop for testing
+    PeerWithConfiguredXLX();
     // ...existing Task() logic goes here...
     // Ensure all logic and local variables are inside this function
 }
