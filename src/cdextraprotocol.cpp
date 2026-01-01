@@ -349,6 +349,17 @@ void CDextraProtocol::Task()
                             for (const auto& p : m_DExtraPeers) {
                                 std::clog << "[DExtra][DEBUG] Peer state: callsign='" << p.remoteCallsign << "' IP='" << p.remoteIp << "' handshakeComplete=" << (p.handshakeComplete ? "true" : "false") << std::endl;
                             }
+                            // Create/register client for this peer if not already present
+                            CClients *clients = g_Reflector.GetClients();
+                            CIp cip(peer.remoteIp.c_str());
+                            CClient *client = clients->FindClient(cip, PROTOCOL_DEXTRA);
+                            if (!client) {
+                                CCallsign ccs(peer.remoteCallsign.c_str());
+                                client = new CDextraClient(ccs, cip, peer.remoteModule, PROTOCOL_DEXTRA);
+                                clients->AddClient(client);
+                                std::clog << "[DExtra][DEBUG] Created and registered client for peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
+                            }
+                            g_Reflector.ReleaseClients();
                         }
                     }
                 }
