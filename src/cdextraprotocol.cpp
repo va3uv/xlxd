@@ -459,14 +459,20 @@ bool CDextraProtocol::EncodeDvHeaderPacket(const CDvHeaderPacket &Packet, CBuffe
 
 bool CDextraProtocol::OnDvHeaderPacketIn(CDvHeaderPacket *Header, const CIp &Ip)
 {
-    // Try to match incoming header packet to a valid peer
+    // Try to match incoming header packet to a valid peer by callsign, module, and IP
     bool matched = false;
+    char headerCallsignBuf[9] = {0};
+    Header->GetRpt2Callsign().GetCallsignString(headerCallsignBuf);
+    std::string headerCallsign(headerCallsignBuf);
+    char headerModule = Header->GetRpt2Module();
     for (const auto& peer : m_DExtraPeers) {
         if (peer.handshakeComplete && peer.remoteIp == std::string((const char *)Ip)) {
-            std::clog << "[DExtra][DEBUG] Valid DV header packet received from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
-            matched = true;
-            // TODO: Update dashboard state here if needed
-            break;
+            // Match on callsign and module as well
+            if (peer.remoteCallsign == headerCallsign && peer.remoteModule == headerModule) {
+                std::clog << "[DExtra][DEBUG] Valid DV header packet received from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' module='" << peer.remoteModule << "'" << std::endl;
+                matched = true;
+                break;
+            }
         }
     }
     delete Header;
