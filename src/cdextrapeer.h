@@ -1,4 +1,3 @@
-#pragma once
 //
 //  cdextrapeer.h
 //  xlxd
@@ -23,6 +22,9 @@
 //    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 // ----------------------------------------------------------------------------
 
+#ifndef cdextrapeer_h
+#define cdextrapeer_h
+
 #include "cpeer.h"
 #include "cdextraclient.h"
 
@@ -36,23 +38,21 @@
 class CDextraPeer : public CPeer
 {
 public:
-    // constructors
-    CDextraPeer();
-    CDextraPeer(const CCallsign &, const CIp &, const char *, const CVersion &);
-    CDextraPeer(const CDextraPeer &);
+	// constructors
+	CDextraPeer();
+	CDextraPeer(const CCallsign &, const CIp &, const char *, const CVersion &);
+	CDextraPeer(const CDextraPeer &) = delete;
 
-    // destructor
-    ~CDextraPeer();
+	// status
+	bool IsAlive(void) const;
 
-    // status
-    bool IsAlive(void) const;
+	// identity
+	int GetProtocol(void) const                 { return PROTOCOL_DEXTRA; }
+	const char *GetProtocolName(void) const     { return "DExtra"; }
 
-    // identity
-    int GetProtocol(void) const                 { return PROTOCOL_DEXTRA; }
-    const char *GetProtocolName(void) const     { return "DExtra"; }
-
-    // revision helper
-    static int GetProtocolRevision(const CVersion &);
+	// revision helper
+	static int GetProtocolRevision(const CVersion &);
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////
+#endif /* cdextrapeer_h */

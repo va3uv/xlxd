@@ -23,42 +23,34 @@
 // Handle incoming DV frame packet for DExtra protocol
 void CDextraProtocol::OnDvFramePacketIn(CDvFramePacket *frame, const CIp *ip)
 {
-    // Match incoming frame to a valid peer by callsign, module, and IP if provided
-    // Frame packets do not have callsign, only module (from GetModuleId)
-    char frameModule = frame->GetModuleId();
-    bool matched = false;
-    for (const auto& peer : m_DExtraPeers) {
-        if (peer.handshakeComplete) {
-            if (ip && peer.remoteIp == std::string((const char *)*ip)) {
-                if (peer.remoteModule == frameModule) {
-                    matched = true;
-                    break;
-                }
-            }
+    // Use stream-to-peer mapping for audio routing
+    if (ip) {
+        StreamKey key{frame->GetStreamId(), frame->GetModuleId(), std::string((const char *)*ip)};
+        auto it = m_streamToPeer.find(key);
+        if (it != m_streamToPeer.end()) {
+            const auto& peer = m_DExtraPeers[it->second];
+            std::clog << "[DExtra][DEBUG] Matched DV frame: streamId=" << frame->GetStreamId() << ", module='" << frame->GetModuleId() << "', ip='" << (const char *)*ip << "' to peer: callsign='" << peer.remoteCallsign << "'" << std::endl;
+        } else {
+            std::clog << "[DExtra][DEBUG] No peer match for DV frame: streamId=" << frame->GetStreamId() << ", module='" << frame->GetModuleId() << "', ip='" << (const char *)*ip << "'" << std::endl;
         }
     }
-    // Optionally, add debug logging here
     delete frame;
 }
 
 // Handle incoming DV last frame packet for DExtra protocol
 void CDextraProtocol::OnDvLastFramePacketIn(CDvLastFramePacket *frame, const CIp *ip)
 {
-    // Match incoming last frame to a valid peer by callsign, module, and IP if provided
-    // Frame packets do not have callsign, only module (from GetModuleId)
-    char frameModule = frame->GetModuleId();
-    bool matched = false;
-    for (const auto& peer : m_DExtraPeers) {
-        if (peer.handshakeComplete) {
-            if (ip && peer.remoteIp == std::string((const char *)*ip)) {
-                if (peer.remoteModule == frameModule) {
-                    matched = true;
-                    break;
-                }
-            }
+    // Use stream-to-peer mapping for audio routing
+    if (ip) {
+        StreamKey key{frame->GetStreamId(), frame->GetModuleId(), std::string((const char *)*ip)};
+        auto it = m_streamToPeer.find(key);
+        if (it != m_streamToPeer.end()) {
+            const auto& peer = m_DExtraPeers[it->second];
+            std::clog << "[DExtra][DEBUG] Matched DV last frame: streamId=" << frame->GetStreamId() << ", module='" << frame->GetModuleId() << "', ip='" << (const char *)*ip << "' to peer: callsign='" << peer.remoteCallsign << "'" << std::endl;
+        } else {
+            std::clog << "[DExtra][DEBUG] No peer match for DV last frame: streamId=" << frame->GetStreamId() << ", module='" << frame->GetModuleId() << "', ip='" << (const char *)*ip << "'" << std::endl;
         }
     }
-    // Optionally, add debug logging here
     delete frame;
 }
 // ...existing code...
@@ -532,11 +524,16 @@ bool CDextraProtocol::OnDvHeaderPacketIn(CDvHeaderPacket *Header, const CIp &Ip)
     Header->GetRpt2Callsign().GetCallsignString(headerCallsignBuf);
     std::string headerCallsign(headerCallsignBuf);
     char headerModule = Header->GetRpt2Module();
-    for (const auto& peer : m_DExtraPeers) {
-        if (peer.handshakeComplete && peer.remoteIp == std::string((const char *)Ip)) {
-            // Match on callsign and module as well
+    uint16_t streamId = Header->GetStreamId();
+    std::string ipStr((const char *)Ip);
+    for (size_t i = 0; i < m_DExtraPeers.size(); ++i) {
+        const auto& peer = m_DExtraPeers[i];
+        if (peer.handshakeComplete && peer.remoteIp == ipStr) {
             if (peer.remoteCallsign == headerCallsign && peer.remoteModule == headerModule) {
-                std::clog << "[DExtra][DEBUG] Valid DV header packet received from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' module='" << peer.remoteModule << "'" << std::endl;
+                // Register stream mapping
+                StreamKey key{streamId, headerModule, ipStr};
+                m_streamToPeer[key] = i;
+                std::clog << "[DExtra][DEBUG] Registered stream: streamId=" << streamId << ", module='" << headerModule << "', ip='" << ipStr << "' to peer: callsign='" << peer.remoteCallsign << "'" << std::endl;
                 matched = true;
                 break;
             }

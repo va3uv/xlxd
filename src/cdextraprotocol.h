@@ -25,11 +25,15 @@
 #ifndef cdextraprotocol_h
 #define cdextraprotocol_h
 
+
 #include "ctimepoint.h"
 #include "cprotocol.h"
 #include "cdvheaderpacket.h"
 #include "cdvframepacket.h"
 #include "cdvlastframepacket.h"
+#include <map>
+#include <tuple>
+
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -60,12 +64,22 @@ class CDextraStreamCacheItem
 public:
     CDextraStreamCacheItem()     {}
     ~CDextraStreamCacheItem()    {}
-    
     CDvHeaderPacket m_dvHeader;
+};
+
+// Map (streamId, module, IP) to peer index for audio routing
+struct StreamKey {
+    uint16_t streamId;
+    uint8_t module;
+    std::string ip;
+    bool operator<(const StreamKey& other) const {
+        return std::tie(streamId, module, ip) < std::tie(other.streamId, other.module, other.ip);
+    }
 };
 
 class CDextraProtocol : public CProtocol
 {
+    std::map<StreamKey, size_t> m_streamToPeer;
 public:
     // constructor
     CDextraProtocol();

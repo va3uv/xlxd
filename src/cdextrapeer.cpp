@@ -4,6 +4,7 @@
 //
 //  Created by Antony Chazapis (SV9OAN) on 25/2/2018.
 //  Copyright © 2016 Jean-Luc Deltombe (LX3JL). All rights reserved.
+//  Copyright © 2020 Thomas A. Early, N7TAE
 //
 // ----------------------------------------------------------------------------
 //    This file is part of xlxd.
@@ -38,36 +39,16 @@ CDextraPeer::CDextraPeer()
 }
 
 CDextraPeer::CDextraPeer(const CCallsign &callsign, const CIp &ip, const char *modules, const CVersion &version)
-: CPeer(callsign, ip, modules, version)
+	: CPeer(callsign, ip, modules, version)
 {
-    std::cout << "Adding DExtra peer" << std::endl;
+	std::cout << "Adding DExtra peer" << std::endl;
 
-    // and construct the DExtra clients
-    for (unsigned int i = 0; i < ::strlen(modules); i++)
-    {
-        // create
-        CDextraClient *client = new CDextraClient(callsign, ip, modules[i], version.GetMajor());
-        // and append to vector
-        m_Clients.push_back(client);
-    }
-}
-
-CDextraPeer::CDextraPeer(const CDextraPeer &peer)
-: CPeer(peer)
-{
-    for (auto it = peer.m_Clients.begin(); it!=peer.m_Clients.end(); it++)
-    {
-        CDextraClient *client = new CDextraClient((const CDextraClient &)*(*it));
-        m_Clients.push_back(client);
-
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////
-// destructors
-
-CDextraPeer::~CDextraPeer()
-{
+	// and construct the DExtra clients
+	for ( unsigned i = 0; i < ::strlen(modules); i++ )
+	{
+		// create and append to vector
+		m_Clients.push_back(new CDextraClient(callsign, ip, modules[i], version.GetMajor()));
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -75,12 +56,12 @@ CDextraPeer::~CDextraPeer()
 
 bool CDextraPeer::IsAlive(void) const
 {
-    for (auto it=m_Clients.begin(); it!=m_Clients.end(); it++)
-    {
-        if (! (*it)->IsAlive())
+	for (auto it = m_Clients.cbegin(); it != m_Clients.cend(); ++it)
+	{
+		if (!(*it)->IsAlive())
 			return false;
-    }
-    return true;
+	}
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -88,6 +69,5 @@ bool CDextraPeer::IsAlive(void) const
 
 int CDextraPeer::GetProtocolRevision(const CVersion &version)
 {
-    return version.GetMajor();
+	return version.GetMajor();
 }
-
