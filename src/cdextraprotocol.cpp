@@ -531,7 +531,7 @@ bool CDextraProtocol::OnDvHeaderPacketIn(CDvHeaderPacket *Header, const CIp &Ip)
         if (peer.handshakeComplete && peer.remoteIp == ipStr) {
             if (peer.remoteCallsign == headerCallsign && peer.remoteModule == headerModule) {
                 // Register stream mapping
-                StreamKey key{streamId, headerModule, ipStr};
+                StreamKey key{streamId, static_cast<uint8_t>(headerModule), ipStr};
                 m_streamToPeer[key] = i;
                 std::clog << "[DExtra][DEBUG] Registered stream: streamId=" << streamId << ", module='" << headerModule << "', ip='" << ipStr << "' to peer: callsign='" << peer.remoteCallsign << "'" << std::endl;
                 matched = true;
