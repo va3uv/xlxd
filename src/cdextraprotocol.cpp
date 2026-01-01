@@ -341,6 +341,11 @@ void CDextraProtocol::Task()
                         sock->Send(ackPacket, remoteIp, DEXTRA_PORT);
                         // If we sent a 14-byte ACK in response to a remote 11-byte connect, count it as handshake progress
                         m_ackCount[i]++;
+                        // Set handshakeComplete for inbound connections
+                        if (!peer.handshakeComplete) {
+                            peer.handshakeComplete = true;
+                            std::clog << "[DExtra][DEBUG] Handshake complete for inbound peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' (inbound 11/14 exchange)" << std::endl;
+                        }
                     }
                 }
             }
