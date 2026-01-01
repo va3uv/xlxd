@@ -341,10 +341,14 @@ void CDextraProtocol::Task()
                         sock->Send(ackPacket, remoteIp, DEXTRA_PORT);
                         // If we sent a 14-byte ACK in response to a remote 11-byte connect, count it as handshake progress
                         m_ackCount[i]++;
-                        // Set handshakeComplete for inbound connections
+                        // Set handshakeComplete for inbound connections and log peer state
                         if (!peer.handshakeComplete) {
                             peer.handshakeComplete = true;
                             std::clog << "[DExtra][DEBUG] Handshake complete for inbound peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' (inbound 11/14 exchange)" << std::endl;
+                            // Log all peers after handshakeComplete
+                            for (const auto& p : m_DExtraPeers) {
+                                std::clog << "[DExtra][DEBUG] Peer state: callsign='" << p.remoteCallsign << "' IP='" << p.remoteIp << "' handshakeComplete=" << (p.handshakeComplete ? "true" : "false") << std::endl;
+                            }
                         }
                     }
                 }
@@ -440,9 +444,18 @@ bool CDextraProtocol::EncodeDvHeaderPacket(const CDvHeaderPacket &Packet, CBuffe
 
 bool CDextraProtocol::OnDvHeaderPacketIn(CDvHeaderPacket *Header, const CIp &Ip)
 {
-    // Minimal stub: delete header to avoid leak
+    // Try to match incoming header packet to a valid peer
+    bool matched = false;
+    for (const auto& peer : m_DExtraPeers) {
+        if (peer.handshakeComplete && peer.remoteIp == std::string((const char *)Ip)) {
+            std::clog << "[DExtra][DEBUG] Valid DV header packet received from peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
+            matched = true;
+            // TODO: Update dashboard state here if needed
+            break;
+        }
+    }
     delete Header;
-    return false;
+    return matched;
 }
 
 void CDextraProtocol::HandleKeepalives()
