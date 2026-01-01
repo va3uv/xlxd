@@ -355,8 +355,9 @@ void CDextraProtocol::Task()
                             CClient *client = clients->FindClient(cip, PROTOCOL_DEXTRA);
                             if (!client) {
                                 // Compose callsign with remote module as suffix (e.g., XRF416-A)
-                                std::string callsignWithModule = peer.remoteCallsign + "-" + peer.remoteModule;
-                                CCallsign ccs(callsignWithModule.c_str());
+                                std::string callsignOnly = peer.remoteCallsign;
+                                CCallsign ccs(callsignOnly.c_str());
+                                ccs.SetModule(peer.remoteModule);
                                 // Register client on our local module
                                 client = new CDextraClient(ccs, cip, peer.localModule, PROTOCOL_DEXTRA);
                                 clients->AddClient(client);
