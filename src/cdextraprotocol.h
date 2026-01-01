@@ -100,14 +100,14 @@ protected:
     void PeerWithConfiguredXLX();
     void EncodeConnectPacket(const std::string& localCallsign, char localModule, const std::string& remoteCallsign, char remoteModule, CBuffer* buffer);
 
-
-
     // keepalive helpers
     void HandleKeepalives(void);
 
     // stream helpers
     bool OnDvHeaderPacketIn(CDvHeaderPacket *, const CIp &);
-    
+    void OnDvFramePacketIn(CDvFramePacket *, const CIp * = NULL) override;
+    void OnDvLastFramePacketIn(CDvLastFramePacket *, const CIp * = NULL) override;
+
     // packet decoding helpers
     bool                IsValidConnectPacket(const CBuffer &, CCallsign *, char *, int *);
     bool                IsValidDisconnectPacket(const CBuffer &, CCallsign *);
@@ -116,7 +116,7 @@ protected:
     CDvHeaderPacket     *IsValidDvHeaderPacket(const CBuffer &) const;
     CDvFramePacket      *IsValidDvFramePacket(const CBuffer &);
     CDvLastFramePacket  *IsValidDvLastFramePacket(const CBuffer &);
-    
+
     // packet encoding helpers
     void                EncodeKeepAlivePacket(CBuffer *);
     void                EncodeConnectAckPacket(CBuffer *, int);
@@ -126,11 +126,11 @@ protected:
     bool                EncodeDvHeaderPacket(const CDvHeaderPacket &, CBuffer *) const;
     bool                EncodeDvFramePacket(const CDvFramePacket &, CBuffer *) const;
     bool                EncodeDvLastFramePacket(const CDvLastFramePacket &, CBuffer *) const;
-    
+
 protected:
     // time
     CTimePoint          m_LastKeepaliveTime;
-    
+
     // for queue header caches
     std::array<CDextraStreamCacheItem, NB_OF_MODULES>    m_StreamsCache;
 };

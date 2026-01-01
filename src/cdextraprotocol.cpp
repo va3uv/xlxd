@@ -1,3 +1,67 @@
+// ...existing code...
+
+// ...existing code...
+
+// Required includes for DExtra protocol implementation
+#include "main.h"
+#include "ccallsign.h"
+#include "cpacketstream.h"
+#include <mutex>
+#include <vector>
+#include <string.h>
+#include <fstream>
+#include <sstream>
+#include "cdextraclient.h"
+#include "cdextraprotocol.h"
+#include "cdvframepacket.h"
+#include "cdvlastframepacket.h"
+#include "creflector.h"
+#include "cgatekeeper.h"
+#include <netdb.h>
+#include <arpa/inet.h>
+
+// Handle incoming DV frame packet for DExtra protocol
+void CDextraProtocol::OnDvFramePacketIn(CDvFramePacket *frame, const CIp *ip)
+{
+    // Match incoming frame to a valid peer by callsign, module, and IP if provided
+    // Frame packets do not have callsign, only module (from GetModuleId)
+    char frameModule = frame->GetModuleId();
+    bool matched = false;
+    for (const auto& peer : m_DExtraPeers) {
+        if (peer.handshakeComplete) {
+            if (ip && peer.remoteIp == std::string((const char *)*ip)) {
+                if (peer.remoteModule == frameModule) {
+                    matched = true;
+                    break;
+                }
+            }
+        }
+    }
+    // Optionally, add debug logging here
+    delete frame;
+}
+
+// Handle incoming DV last frame packet for DExtra protocol
+void CDextraProtocol::OnDvLastFramePacketIn(CDvLastFramePacket *frame, const CIp *ip)
+{
+    // Match incoming last frame to a valid peer by callsign, module, and IP if provided
+    // Frame packets do not have callsign, only module (from GetModuleId)
+    char frameModule = frame->GetModuleId();
+    bool matched = false;
+    for (const auto& peer : m_DExtraPeers) {
+        if (peer.handshakeComplete) {
+            if (ip && peer.remoteIp == std::string((const char *)*ip)) {
+                if (peer.remoteModule == frameModule) {
+                    matched = true;
+                    break;
+                }
+            }
+        }
+    }
+    // Optionally, add debug logging here
+    delete frame;
+}
+// ...existing code...
 //
 //  cdextraprotocol.cpp
 //  xlxd
@@ -18,6 +82,7 @@
 //    along with Foobar.  If not, see <http://www.gnu.org/licenses/>. 
 // ----------------------------------------------------------------------------
 
+// Required includes for DExtra protocol implementation
 #include "main.h"
 #include "ccallsign.h"
 #include "cpacketstream.h"
@@ -28,6 +93,8 @@
 #include <sstream>
 #include "cdextraclient.h"
 #include "cdextraprotocol.h"
+#include "cdvframepacket.h"
+#include "cdvlastframepacket.h"
 #include "creflector.h"
 #include "cgatekeeper.h"
 #include <netdb.h>
