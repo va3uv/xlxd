@@ -26,12 +26,13 @@ void CDextraProtocol::OnDvFramePacketIn(CDvFramePacket *frame, const CIp *ip)
     // Use stream-to-peer mapping for audio routing
     if (ip) {
         StreamKey key{frame->GetStreamId(), frame->GetModuleId(), std::string((const char *)*ip)};
+        std::clog << "[DExtra][DEBUG] Looking up stream: streamId=" << frame->GetStreamId() << ", module='" << (int)frame->GetModuleId() << "', ip='" << (const char *)*ip << "'" << std::endl;
         auto it = m_streamToPeer.find(key);
         if (it != m_streamToPeer.end()) {
             const auto& peer = m_DExtraPeers[it->second];
-            std::clog << "[DExtra][DEBUG] Matched DV frame: streamId=" << frame->GetStreamId() << ", module='" << frame->GetModuleId() << "', ip='" << (const char *)*ip << "' to peer: callsign='" << peer.remoteCallsign << "'" << std::endl;
+            std::clog << "[DExtra][DEBUG] Matched DV frame: streamId=" << frame->GetStreamId() << ", module='" << (int)frame->GetModuleId() << "', ip='" << (const char *)*ip << "' to peer: callsign='" << peer.remoteCallsign << "' (index=" << it->second << ")" << std::endl;
         } else {
-            std::clog << "[DExtra][DEBUG] No peer match for DV frame: streamId=" << frame->GetStreamId() << ", module='" << frame->GetModuleId() << "', ip='" << (const char *)*ip << "'" << std::endl;
+            std::clog << "[DExtra][DEBUG] No peer match for DV frame: streamId=" << frame->GetStreamId() << ", module='" << (int)frame->GetModuleId() << "', ip='" << (const char *)*ip << "'" << std::endl;
         }
     }
     delete frame;
@@ -43,12 +44,13 @@ void CDextraProtocol::OnDvLastFramePacketIn(CDvLastFramePacket *frame, const CIp
     // Use stream-to-peer mapping for audio routing
     if (ip) {
         StreamKey key{frame->GetStreamId(), frame->GetModuleId(), std::string((const char *)*ip)};
+        std::clog << "[DExtra][DEBUG] Looking up stream: streamId=" << frame->GetStreamId() << ", module='" << (int)frame->GetModuleId() << "', ip='" << (const char *)*ip << "'" << std::endl;
         auto it = m_streamToPeer.find(key);
         if (it != m_streamToPeer.end()) {
             const auto& peer = m_DExtraPeers[it->second];
-            std::clog << "[DExtra][DEBUG] Matched DV last frame: streamId=" << frame->GetStreamId() << ", module='" << frame->GetModuleId() << "', ip='" << (const char *)*ip << "' to peer: callsign='" << peer.remoteCallsign << "'" << std::endl;
+            std::clog << "[DExtra][DEBUG] Matched DV last frame: streamId=" << frame->GetStreamId() << ", module='" << (int)frame->GetModuleId() << "', ip='" << (const char *)*ip << "' to peer: callsign='" << peer.remoteCallsign << "' (index=" << it->second << ")" << std::endl;
         } else {
-            std::clog << "[DExtra][DEBUG] No peer match for DV last frame: streamId=" << frame->GetStreamId() << ", module='" << frame->GetModuleId() << "', ip='" << (const char *)*ip << "'" << std::endl;
+            std::clog << "[DExtra][DEBUG] No peer match for DV last frame: streamId=" << frame->GetStreamId() << ", module='" << (int)frame->GetModuleId() << "', ip='" << (const char *)*ip << "'" << std::endl;
         }
     }
     delete frame;
@@ -533,7 +535,19 @@ bool CDextraProtocol::OnDvHeaderPacketIn(CDvHeaderPacket *Header, const CIp &Ip)
                 // Register stream mapping
                 StreamKey key{streamId, static_cast<uint8_t>(headerModule), ipStr};
                 m_streamToPeer[key] = i;
-                std::clog << "[DExtra][DEBUG] Registered stream: streamId=" << streamId << ", module='" << headerModule << "', ip='" << ipStr << "' to peer: callsign='" << peer.remoteCallsign << "'" << std::endl;
+                std::clog << "[DExtra][DEBUG] Registered stream: streamId=" << streamId << ", module='" << (int)headerModule << "', ip='" << ipStr << "' to peer: callsign='" << peer.remoteCallsign << "' (index=" << i << ")" << std::endl;
+
+                // Open stream for this peer (if not already open)
+                CClients *clients = g_Reflector.GetClients();
+                CClient *client = clients->FindClient(ipStr.c_str());
+                if (!client) {
+                    CCallsign ccs(headerCallsign.c_str());
+                    ccs.SetModule(headerModule);
+                    client = new CDextraClient(ccs, ipStr.c_str(), headerModule, PROTOCOL_DEXTRA);
+                    clients->AddClient(client);
+                    std::clog << "[DExtra] Opening stream for peer " << peer.remoteCallsign << " (streamId=" << streamId << ", module='" << (int)headerModule << "', ip='" << ipStr << "')" << std::endl;
+                }
+                g_Reflector.ReleaseClients();
                 matched = true;
                 break;
             }
