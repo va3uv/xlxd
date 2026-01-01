@@ -265,10 +265,10 @@ bool CDextraProtocol::Init(void)
 void CDextraProtocol::Task()
 {
     CBuffer Buffer;
-    {
-        std::lock_guard<std::mutex> lock(m_logMutex);
-        std::clog << "[DExtra][DEBUG] Task() running in thread." << std::endl;
-    }
+    //{
+    //    std::lock_guard<std::mutex> lock(m_logMutex);
+    //    std::clog << "[DExtra][DEBUG] Task() running in thread." << std::endl;
+    //}
     // Ensure handshake/keepalive state vectors match peer list size
     if (m_lastConnectTimes.size() != m_DExtraPeers.size()) m_lastConnectTimes.resize(m_DExtraPeers.size(), 0);
     if (m_ackCount.size() != m_DExtraPeers.size()) m_ackCount.resize(m_DExtraPeers.size(), 0);
@@ -291,10 +291,10 @@ void CDextraProtocol::Task()
                     m_connectCount[i]++;
                     std::clog << "[DExtra][DEBUG] Sent first connect to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' (from port 30002)" << std::endl;
                 }
-                // If we have exchanged 11/14 in both directions, set handshakeComplete
-                if (m_connectCount[i] >= 1 && m_ackCount[i] >= 1) {
+                // Set handshakeComplete after first 14-byte ACK received (matches real-world handshake)
+                if (m_ackCount[i] >= 1) {
                     peer.handshakeComplete = true;
-                    std::clog << "[DExtra][DEBUG] Handshake complete for peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' (after bidirectional 11/14 exchange)" << std::endl;
+                    std::clog << "[DExtra][DEBUG] Handshake complete for peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' (after first 14-byte ACK)" << std::endl;
                 }
             } else {
                 // Handshake complete: send 9-byte keepalive every 10 seconds (or as required)
