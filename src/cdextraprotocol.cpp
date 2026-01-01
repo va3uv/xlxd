@@ -354,8 +354,11 @@ void CDextraProtocol::Task()
                             CIp cip(peer.remoteIp.c_str());
                             CClient *client = clients->FindClient(cip, PROTOCOL_DEXTRA);
                             if (!client) {
-                                CCallsign ccs(peer.remoteCallsign.c_str());
-                                client = new CDextraClient(ccs, cip, peer.remoteModule, PROTOCOL_DEXTRA);
+                                // Compose callsign with remote module as suffix (e.g., XRF416-A)
+                                std::string callsignWithModule = peer.remoteCallsign + "-" + peer.remoteModule;
+                                CCallsign ccs(callsignWithModule.c_str());
+                                // Register client on our local module
+                                client = new CDextraClient(ccs, cip, peer.localModule, PROTOCOL_DEXTRA);
                                 clients->AddClient(client);
                                 std::clog << "[DExtra][DEBUG] Created and registered client for peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "'" << std::endl;
                             }
