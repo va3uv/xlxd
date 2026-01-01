@@ -291,20 +291,10 @@ void CDextraProtocol::Task()
                     m_connectCount[i]++;
                     std::clog << "[DExtra][DEBUG] Sent first connect to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' (from port 30002)" << std::endl;
                 }
-                // Only send second connect after first ACK received
-                if (m_connectCount[i] == 1 && m_ackCount[i] == 1 && now - m_lastConnectTimes[i] >= 1) {
-                    m_lastConnectTimes[i] = now;
-                    CIp remoteIp(peer.remoteIp.c_str());
-                    CBuffer connectPacket;
-                    EncodeConnectPacket(localCallsign, peer.localModule, peer.remoteCallsign, peer.remoteModule, &connectPacket);
-                    m_ClientSocket.Send(connectPacket, remoteIp, DEXTRA_PORT);
-                    m_connectCount[i]++;
-                    std::clog << "[DExtra][DEBUG] Sent second connect to peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' (from port 30002)" << std::endl;
-                }
-                // Set handshakeComplete only after two ACKs
-                if (m_connectCount[i] == 2 && m_ackCount[i] == 2) {
+                // If we have exchanged 11/14 in both directions, set handshakeComplete
+                if (m_connectCount[i] >= 1 && m_ackCount[i] >= 1) {
                     peer.handshakeComplete = true;
-                    std::clog << "[DExtra][DEBUG] Handshake complete for peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' (after second 14-byte ACK)" << std::endl;
+                    std::clog << "[DExtra][DEBUG] Handshake complete for peer: callsign='" << peer.remoteCallsign << "' IP='" << peer.remoteIp << "' (after bidirectional 11/14 exchange)" << std::endl;
                 }
             } else {
                 // Handshake complete: send 9-byte keepalive every 10 seconds (or as required)
@@ -349,6 +339,8 @@ void CDextraProtocol::Task()
                         CBuffer ackPacket;
                         EncodeConnectAckPacket(&ackPacket, 0);
                         sock->Send(ackPacket, remoteIp, DEXTRA_PORT);
+                        // If we sent a 14-byte ACK in response to a remote 11-byte connect, count it as handshake progress
+                        m_ackCount[i]++;
                     }
                 }
             }
