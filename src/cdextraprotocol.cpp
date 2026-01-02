@@ -528,10 +528,14 @@ bool CDextraProtocol::OnDvHeaderPacketIn(CDvHeaderPacket *Header, const CIp &Ip)
     char headerModule = Header->GetRpt2Module();
     uint16_t streamId = Header->GetStreamId();
     std::string ipStr((const char *)Ip);
+    std::clog << "[DExtra][DEBUG] Entering stream registration: streamId=" << streamId << ", module='" << (int)headerModule << "', ip='" << ipStr << "', callsign='" << headerCallsign << "'" << std::endl;
     for (size_t i = 0; i < m_DExtraPeers.size(); ++i) {
         const auto& peer = m_DExtraPeers[i];
+        std::clog << "[DExtra][DEBUG] Checking peer index=" << i << ": callsign='" << peer.remoteCallsign << "', module='" << (int)peer.remoteModule << "', ip='" << peer.remoteIp << "', handshakeComplete=" << peer.handshakeComplete << std::endl;
         if (peer.handshakeComplete && peer.remoteIp == ipStr) {
+            std::clog << "[DExtra][DEBUG] IP match and handshake complete for peer index=" << i << std::endl;
             if (peer.remoteCallsign == headerCallsign && peer.remoteModule == headerModule) {
+                std::clog << "[DExtra][DEBUG] Callsign and module match for peer index=" << i << std::endl;
                 // Register stream mapping
                 StreamKey key{streamId, static_cast<uint8_t>(headerModule), ipStr};
                 m_streamToPeer[key] = i;
@@ -539,8 +543,12 @@ bool CDextraProtocol::OnDvHeaderPacketIn(CDvHeaderPacket *Header, const CIp &Ip)
 
                 // Open stream for this peer (if not already open)
                 CClients *clients = g_Reflector.GetClients();
+                std::clog << "[DExtra][DEBUG] Acquired clients lock, looking for client with ip='" << ipStr << "'" << std::endl;
                 CClient *client = clients->FindClient(ipStr.c_str());
-                if (!client) {
+                if (client) {
+                    std::clog << "[DExtra][DEBUG] Client already exists for ip='" << ipStr << "'" << std::endl;
+                } else {
+                    std::clog << "[DExtra][DEBUG] No client found for ip='" << ipStr << "', creating new client." << std::endl;
                     CCallsign ccs(headerCallsign.c_str());
                     ccs.SetModule(headerModule);
                     client = new CDextraClient(ccs, ipStr.c_str(), headerModule, PROTOCOL_DEXTRA);
@@ -550,7 +558,11 @@ bool CDextraProtocol::OnDvHeaderPacketIn(CDvHeaderPacket *Header, const CIp &Ip)
                 g_Reflector.ReleaseClients();
                 matched = true;
                 break;
+            } else {
+                std::clog << "[DExtra][DEBUG] Callsign/module mismatch: peer.callsign='" << peer.remoteCallsign << "', peer.module='" << (int)peer.remoteModule << "', headerCallsign='" << headerCallsign << "', headerModule='" << (int)headerModule << "'" << std::endl;
             }
+        } else {
+            std::clog << "[DExtra][DEBUG] IP/handshake mismatch: peer.ip='" << peer.remoteIp << "', header.ip='" << ipStr << "', handshakeComplete=" << peer.handshakeComplete << std::endl;
         }
     }
     delete Header;
