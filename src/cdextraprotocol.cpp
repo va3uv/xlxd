@@ -391,6 +391,19 @@ void CDextraProtocol::Task()
             }
             std::clog << std::dec << std::endl;
 
+            // Dispatch DV packets for further processing (before handshake logic)
+            if (bytes == 56 && Buffer.data()[0] == 'D' && Buffer.data()[1] == 'S' && Buffer.data()[2] == 'V' && Buffer.data()[3] == 'T') {
+                CDvHeaderPacket header;
+                memcpy(&header, Buffer.data(), sizeof(CDvHeaderPacket));
+                std::clog << "[DExtra][DEBUG] Dispatching DV header packet to OnDvHeaderPacketIn" << std::endl;
+                OnDvHeaderPacketIn(&header, remoteIp);
+            } else if (bytes == 27 && Buffer.data()[0] == 'D' && Buffer.data()[1] == 'S' && Buffer.data()[2] == 'V' && Buffer.data()[3] == 'T') {
+                CDvFramePacket frame;
+                memcpy(&frame, Buffer.data(), sizeof(CDvFramePacket));
+                std::clog << "[DExtra][DEBUG] Dispatching DV frame packet to OnDvFramePacketIn" << std::endl;
+                OnDvFramePacketIn(&frame, &remoteIp);
+            }
+
             // Respond to every 11-byte connect with a 14-byte ACK (on either socket)
             if (bytes == 11) {
                 for (size_t i = 0; i < m_DExtraPeers.size(); ++i) {
